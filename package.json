@@ -1,0 +1,17 @@
+{
+  "name": "json-schemator",
+  "version": "0.0.1",
+  "description": "json schema validator",
+  "main": "index.js",
+  "scripts": {
+    "test": "./node_modules/jasmine-node/bin/jasmine-node ./spec",
+	"watch-tests": "./node_modules/jasmine-node/bin/jasmine-node --autotest ./spec"
+  },
+  "repository": "",
+  "author": "",
+  "license": "BSD",
+
+  "devDependencies": {
+	  "jasmine-node": "1.2.x" 
+  }
+}
