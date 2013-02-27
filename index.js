@@ -46,22 +46,60 @@ var validators = {
 	  return;
 	}
 	var pattern = schema.patternProperties ? Object.keys(schema.patternProperties) : [];
-	var additionalAllowed = !(schema.hasOwnProperty('additionalProperties') && !schema.additionalProperties);
+	var additionalAllowed = !(schema.hasOwnProperty('additionalProperties')
+							  && !schema.additionalProperties);
 
+	//
+	// check dependencies
+	//
+	if (schema.dependencies) {
+	  var checkDep = function(object, key, dependency) {
+		if (typeof dependency === 'string') {
+		  // simple dependency
+		  if (object.hasOwnProperty(key) && !object.hasOwnProperty(dependency)) {
+			errors.push(error, path + '.' + key, 'Property does not meet dependency');
+		  }
+		}
+		else if (isArray(dependency)) {
+		  // array of dependencies, recurse
+		  dependency.forEach(function(dep) {
+			checkDep(object, key, dep);
+		  });
+		}
+		else if (typeof dependency === 'object') {
+		  // schema dependency
+		  validate(dependency, object, path, errors);
+		}
+	  };
+	  
+	  Object.keys(schema.dependencies).forEach(function(key) {
+		if (!value.hasOwnProperty(key)) {
+		  errors.push(error(path + '.' + key, 'Property does not exist, but has dependency'));
+		}
+		else checkDep(value, key, schema.dependencies[key]);
+	  });
+	}
+
+	//
+	// check regular properties
+	//
 	if (schema.properties) {
-	  // make sure all schema properties have a corresponding valid instance property
 	  Object.keys(schema.properties).forEach(function(key) {
-		var subPath = path + '.' + key;
+		var subPath = path + '.' + key,
+			subSchema = schema.properties[key];
+		
 		if (value.hasOwnProperty(key)) {
 		  validate(schema.properties[key], value[key], subPath, errors);
 		}
-		else {
-		  errors.push(error(subPath, 'Property does not exist on object'));
+		else if (subSchema.required) {
+		  errors.push(error(subPath, 'Property is missing from object'));
 		}
 	  });
 	}
 
-	// make sure all instance properties conform to a schema
+	//
+	// check additional-, pattern- and superfluous-properties
+	//
 	Object.keys(value).forEach(function(key) {
 	  if (schema.properties && schema.properties[key]) {
 		// we already checked these
@@ -100,41 +138,70 @@ var validators = {
 	  errors.push(error(path, 'Value is not an array'));
 	  return;
 	}
+
+	//
+	// validate single item-schema array
+	//
+	if (schema.items && !isArray(schema.items)) {
+	  value.forEach(function(item, i) {
+		validate(schema.items, item, path + '[' + i + ']', errors);
+	  });
+	  return;
+	}
+
+	//
+	// validate array tuple schema
+	//
 	var i = 0;
-	
-	if (schema.items) {
-	  if (isArray(schema.items)) {
-		// validate array tuple
-		// TODO: allow additional items in tuple
-		for (; i < value.length; ++i) {
-		  if (schema.items.length > i) {
-			validate(schema.items[i], value[i], path + '[' + i + ']', errors);
-		  }
-		  else {
-			errors.push(error(path + '[' + i + ']'), 'Entry not valid for tuple schema');
-		  }
+	if (schema.items && isArray(schema.items)) {
+	  for (; i < schema.items.length; ++i) {
+		subPath = '[' + i + ']';
+		if (i < value.length) {
+		  validate(schema.items[i], value[i], subPath, errors);
 		}
-	  }
-	  else {
-		// validate array of one type
-		for (; i < value.length; ++i) {
-		  validate(schema.items[i], value[i], path + '[' + i + ']', errors);
+		else {
+		  errors.push(error(subPath), 'Item does not exist in instance');
+		  continue;
 		}
 	  }
 	}
-	else if (schema.additionalItems) {
-	  // validate array of many types
-	  for (; i < value.length; ++i) {
-		var valid = false,
-			subPath = path + '[' + i + ']';
 
-		schema.additionalItems.forEach(function(subSchema) {
-		  var errs = [];
-		  validate(subSchema, value[i], subPath, errs);
-		  if (errs.length === 0) valid = true;
-		});
-		if (!valid) {
-		  errors.push(error(subPath, 'Item does not validate as additional item'));
+	if (i === value.length) {
+	  // all values validated
+	  return;
+	}
+
+	//
+	// check if no additional items are allowed
+	//
+	if (schema.hasOwnProperty('additionalItems') && !schema.additionalItems) {
+	  errors.push(error(path, 'Additional items are not allowed'));
+	  return;
+	}
+
+	//
+	// validate additional items
+	//
+	if (schema.additionalItems) {
+	  // validate single-schema additional items
+	  if (!isArray(schema.additionalItems)) {
+		for(; i < value.length; ++i) {
+		  validate(schema.additionalItems, value[i], path + '[' + i + ']', errors);
+		}
+	  }
+	  else {
+		// validate against an array of additional schemas
+		for(; i < value.length; ++i) {
+		  var subPath = '[' + i + ']';
+		  var isValid = false;
+		  schema.additionalItems.forEach(function(subSchema) {
+			var errs = [];
+			validate(subSchema, value[i], subPath, errs);
+			isValid = errs.length === 0 ? true : isValid;
+		  });
+		  if (!isValid) {
+			errors.push(error(subPath, 'Item not valid'));
+		  }
 		}
 	  }
 	}
@@ -161,6 +228,11 @@ var validate = function(schema, data, path, errors) {
   // 		errors.push(error(path, 'Could not resolve schema ' + schema.$ref));
   // 	}
   // }
+
+  // infer object type
+  if (!schema.type && schema.properties) {
+	schema.type = 'object';
+  }
   
   if (schema.type) {
 	if (isArray(schema.type)) {
@@ -168,9 +240,9 @@ var validate = function(schema, data, path, errors) {
 	  var valid = false;
 	  schema.type.forEach(function(type) {
 		if (validators[type]) {
-		  var errs = [];
-		  validators[type](schema, data, path, errs);
-		  if (errs.length === 0) {
+		  var localErrors = [];
+		  validators[type](schema, data, path, localErrors);
+		  if (localErrors.length === 0) {
 			valid = true;
 			return;
 		  }
