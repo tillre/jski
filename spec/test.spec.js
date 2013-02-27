@@ -216,4 +216,74 @@ describe('Validation of JSON schema', function() {
 	  expect(validate({type: 'integer', minimum: 3}, 2).valid).toBe(false);
 	});
   });
+
+
+  describe('5.10. maximum', function() {
+	it('should validate if the number is below the maximum', function() {
+	  expect(validate({type: 'number', maximum: 3}, 3.0).valid).toBe(true);
+	  expect(validate({type: 'number', maximum: 3}, 2.5).valid).toBe(true);
+	});
+	it('should not validate if the number is greater than the maximum', function() {
+	  expect(validate({type: 'number', maximum: 3}, 4.0).valid).toBe(false);
+	});
+
+	it('should validate if the integer is below the maximum', function() {
+	  expect(validate({type: 'integer', maximum: 3}, 3).valid).toBe(true);
+	  expect(validate({type: 'integer', maximum: 3}, 2).valid).toBe(true);
+	});
+	it('should not validate if the integer is greater than the maximum', function() {
+	  expect(validate({type: 'integer', maximum: 3}, 4).valid).toBe(false);
+	});
+  });
+
+
+  describe('5.11. exclusive minimum', function() {
+	it('should validate if the number is greater than the minimum', function() {
+	  expect(validate({type: 'number', exclusiveMinimum: 3}, 4.0).valid).toBe(true);
+	  expect(validate({type: 'number', exclusiveMinimum: 3}, 3.1).valid).toBe(true);
+	});
+	it('should not validate if the number is equal or below the minimum', function() {
+	  expect(validate({type: 'number', exclusiveMinimum: 3}, 3.0).valid).toBe(false);
+	  expect(validate({type: 'number', exclusiveMinimum: 3}, 2.5).valid).toBe(false);
+	});
+
+	it('should validate if the integer is greater than the minimum', function() {
+	  expect(validate({type: 'integer', exclusiveMinimum: 3}, 4).valid).toBe(true);
+	});
+	it('should not validate if the integer is equal or below the minimum', function() {
+	  expect(validate({type: 'integer', exclusiveMinimum: 3}, 3).valid).toBe(false);
+	  expect(validate({type: 'integer', exclusiveMinimum: 3}, 2).valid).toBe(false);
+	});
+  });
+
+  
+  describe('5.12. exclusive maximum', function() {
+	it('should validate if the number is less than the maximum', function() {
+	  expect(validate({type: 'number', exclusiveMaximum: 3}, 2.9).valid).toBe(true);
+	});
+	it('should not validate if the number is equal to or greater than the maximum', function() {
+	  expect(validate({type: 'number', exclusiveMaximum: 3}, 3.0).valid).toBe(false);
+	  expect(validate({type: 'number', exclusiveMaximum: 3}, 3.5).valid).toBe(false);
+	});
+
+	it('should validate if the integer is less than the maximum', function() {
+	  expect(validate({type: 'integer', exclusiveMaximum: 3}, 2).valid).toBe(true);
+	});
+	it('should not validate if the integer is equal to or greater than the maximum', function() {
+	  expect(validate({type: 'integer', exclusiveMaximum: 3}, 3).valid).toBe(false);
+	  expect(validate({type: 'integer', exclusiveMaximum: 3}, 4).valid).toBe(false);
+	});
+  });
+
+  
+  describe('5.13. minItems', function() {
+	
+  });
+
+  
+  describe('5.13. maxItems', function() {
+	
+  });
+
+  
 });

@@ -24,9 +24,19 @@ var validators = {
   'number': function(schema, value, path, errors) {
 	if (typeof value !== 'number') {
 	  errors.push(error(path, 'Value is not a number'));
+	  return;
 	}
 	if (schema.hasOwnProperty('minimum') && value < schema.minimum) {
 	  errors.push(error(path, 'Number is below minimum'));
+	}
+	if (schema.hasOwnProperty('maximum') && value > schema.maximum) {
+	  errors.push(error(path, 'Number is greater than the maximum'));
+	}
+	if (schema.hasOwnProperty('exclusiveMinimum') && value <= schema.exclusiveMinimum) {
+	  errors.push(error(path, 'Number is equal to or less than exclusive minimum'));
+	}
+	if (schema.hasOwnProperty('exclusiveMaximum') && value >= schema.exclusiveMaximum) {
+	  errors.push(error(path, 'Number is equal to or greater than exclusive maximum'));
 	}
   },
   
@@ -40,6 +50,15 @@ var validators = {
 	}
 	if (schema.hasOwnProperty('minimum') && value < schema.minimum) {
 	  errors.push(error(path, 'Integer is below minimum'));
+	}
+	if (schema.hasOwnProperty('maximum') && value > schema.maximum) {
+	  errors.push(error(path, 'Integer is greater than the maximum'));
+	}
+	if (schema.hasOwnProperty('exclusiveMinimum') && value <= schema.exclusiveMinimum) {
+	  errors.push(error(path, 'Integer is equal to or less than exclusive minimum'));
+	}
+	if (schema.hasOwnProperty('exclusiveMaximum') && value >= schema.exclusiveMaximum) {
+	  errors.push(error(path, 'Integer is equal to or greater than exclusive maximum'));
 	}
   },
 
