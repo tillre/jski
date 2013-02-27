@@ -3,7 +3,9 @@
 var validate = require('../index.js');
 
 describe('Validation of JSON schema', function() {
+
   it('should validate empty schema with any object', function() {
+	expect(validate(null, {foo: 'bar'}).valid).toBe(true);
 	expect(validate({}, {foo: 'bar'}).valid).toBe(true);
   });
 
@@ -11,6 +13,7 @@ describe('Validation of JSON schema', function() {
 	expect(validate({type: 'string'}, 42).errors.length).toBeGreaterThan(0);
 	expect(validate({type: 'string'}, 42).valid).toBe(false);
   });
+
 
   describe('5.1. types', function() {
 	it('should validate simple types', function() {
@@ -31,6 +34,7 @@ describe('Validation of JSON schema', function() {
 	});
   });
 
+
   describe('5.2. object properties', function() {
 	var schema = {type: 'object', properties: {foo: {type: 'number'}, bar: {type: 'null'}}};
 
@@ -45,6 +49,7 @@ describe('Validation of JSON schema', function() {
 	});
   });
   
+
   describe('5.3. pattern object properties', function() {
 	var schema = {type: 'object', patternProperties: {'\\w+_bar': {type: 'number'}}};
 
@@ -56,6 +61,7 @@ describe('Validation of JSON schema', function() {
 	});
   });
   
+
   describe('5.4. additional object properties', function() {
 	var schema = {type: 'object',
 				  properties: {foo: {type: 'number'}, bar: {type: 'null'}},
@@ -68,6 +74,7 @@ describe('Validation of JSON schema', function() {
 	  expect(validate(schema, {foo: 42, bar: null, baz: []}).valid).toBe(false);
 	});
   });
+
 
   describe('5.5. array items', function() {
 	var tupleSchema = {type: 'array',
@@ -92,6 +99,7 @@ describe('Validation of JSON schema', function() {
 	});
 	
   });
+
 
   describe('5.6. array of additional items', function() {
 	it('should not validate a array with disallowed additional items', function() {
@@ -128,7 +136,8 @@ describe('Validation of JSON schema', function() {
 	});
   });
 
-  describe('5.8. required', function() {
+  
+  describe('5.7. required', function() {
 	var schema = {type: 'object',
 				  properties: {
 					foo: {type: 'string', require: true},
@@ -142,7 +151,8 @@ describe('Validation of JSON schema', function() {
 	});
   });
 
-  describe('5.9. dependencies', function() {
+  
+  describe('5.8. dependencies', function() {
 	var schema = {type: 'object',
 				  properties: {a: {type: 'string'}, 'b': {type: 'number'}},
 				  dependencies: {a: 'b'}};
@@ -186,6 +196,24 @@ describe('Validation of JSON schema', function() {
 	});
 	it('should not validate object with array of schema dependencies not met', function() {
 	  expect(validate(schemaArraySchema, {a: '', b: 11, c: true}).valid).toBe(false);
+	});
+  });
+
+
+  describe('5.9. minimum', function() {
+	it('should validate if the number is greater than or equal to the minimum', function() {
+	  expect(validate({type: 'number', minimum: 3.3}, 3.3).valid).toBe(true);
+	  expect(validate({type: 'number', minimum: 3.3}, 4).valid).toBe(true);
+	});
+	it('should not validate if the number is below the minimum', function() {
+	  expect(validate({type: 'number', minimum: 3.3}, 3.2).valid).toBe(false);
+	});
+	it('should validate if the integer is greate than or equal to the minimum', function() {
+	  expect(validate({type: 'integer', minimum: 3}, 3).valid).toBe(true);
+	  expect(validate({type: 'integer', minimum: 3}, 4).valid).toBe(true);
+	});
+	it('should not validate if the integer is below the minimum', function() {
+	  expect(validate({type: 'integer', minimum: 3}, 2).valid).toBe(false);
 	});
   });
 });

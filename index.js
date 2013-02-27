@@ -1,10 +1,13 @@
+//
+// joskito - json schema validation
+//
 
-// json schema validation
 
 var error = function(path, msg) {
   console.log('error: ', path, msg);
   return { path: path, message: msg };
 };
+
 
 var isArray = function(a) {
   return Object.prototype.toString.call(a) === '[object Array]';
@@ -22,6 +25,9 @@ var validators = {
 	if (typeof value !== 'number') {
 	  errors.push(error(path, 'Value is not a number'));
 	}
+	if (schema.hasOwnProperty('minimum') && value < schema.minimum) {
+	  errors.push(error(path, 'Number is below minimum'));
+	}
   },
   
   'integer': function(schema, value, path, errors) {
@@ -30,7 +36,10 @@ var validators = {
 	  return;
 	}
 	if (Math.ceil(value) !== value) {
-	  errors.push(error(path, 'Value a number, but not an integer'));
+	  errors.push(error(path, 'Value is a number, but not an integer'));
+	}
+	if (schema.hasOwnProperty('minimum') && value < schema.minimum) {
+	  errors.push(error(path, 'Integer is below minimum'));
 	}
   },
 
@@ -167,7 +176,7 @@ var validators = {
 	}
 
 	if (i === value.length) {
-	  // all values validated
+	  // all items validated or array is empty
 	  return;
 	}
 
@@ -219,6 +228,9 @@ var validators = {
 
 
 var validate = function(schema, data, path, errors) {
+  if (!schema) {
+	return;
+  }
   // if (schema.$ref) {
   // 	if (schemas[schema.$ref]) {
   // 		// TODO: replace schema at this point with schema from reference
