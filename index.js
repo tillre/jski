@@ -166,7 +166,17 @@ var validators = {
 	  errors.push(error(path, 'Value is not an array'));
 	  return;
 	}
+	// check min/max
+	if (schema.hasOwnProperty('minItems') && value.length < schema.minItems) {
+	  errors.push(error(path, 'Array has not enough items'));
+	}
+	if (schema.hasOwnProperty('maxItems') && value.length > schema.maxItems) {
+	  errors.push(error(path, 'Array has too many items'));
+	}
 
+	// check unique
+	
+	
 	//
 	// validate single item-schema array
 	//

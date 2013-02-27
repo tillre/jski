@@ -277,13 +277,33 @@ describe('Validation of JSON schema', function() {
 
   
   describe('5.13. minItems', function() {
-	
+	it('should validate an array with at least min items', function() {
+	  expect(validate({type: 'array', minItems: 3}, [1, 2, 3]).valid).toBe(true);
+	  expect(validate({type: 'array', minItems: 3}, [1, 2, 3, 4]).valid).toBe(true);
+	});
+	it('should not validate an array with less items', function() {
+	  expect(validate({type: 'array', minItems: 3}, [1, 2]).valid).toBe(false);
+	});
   });
 
   
   describe('5.13. maxItems', function() {
-	
+	it('should validate an array with max items', function() {
+	  expect(validate({type: 'array', maxItems: 3}, [1, 2]).valid).toBe(true);
+	  expect(validate({type: 'array', maxItems: 3}, [1, 2, 3]).valid).toBe(true);
+	});
+	it('should not validate an array with too many items', function() {
+	  expect(validate({type: 'array', maxItems: 3}, [1, 2, 3, 4]).valid).toBe(false);
+	});
   });
 
-  
+
+  describe('5.14. uniqueItems', function() {
+	it('should validate an array with unique items', function() {
+	  expect(validate({type: 'array', uniqueItems: true}, [1, 2, 3]).valid).toBe(true);
+	});
+	it('should not validate an array with nonunique items', function() {
+	  expect(validate({type: 'array', uniqueItems: true}, [1, 2, 2]).valid).toBe(false);
+	});
+  });
 });
