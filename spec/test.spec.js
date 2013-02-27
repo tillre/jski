@@ -1,11 +1,5 @@
 /*global describe it expect*/
 
-describe('A test', function() {
-  it('contains spec with a exception', function() {
-	expect(true).toBe(true);
-  });
-});
-
 var validate = require('../index.js');
 
 describe('Validation of JSON schema', function() {
@@ -86,7 +80,7 @@ describe('Validation of JSON schema', function() {
   });
 
   describe('5.6. array of additional items', function() {
-	
+	  expect(false).toBe(true);
   });
 
   
