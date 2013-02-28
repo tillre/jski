@@ -352,6 +352,87 @@ describe('Validation of JSON schema', function() {
 
 
   describe('5.23. format', function() {
-	
+	it('should validate string formats', function() {
+	  expect(validate({type: 'string', format: 'email'},
+					  'jeff.bozo@bannn.co.hk', {validateFormat: true}
+					 ).valid).toBe(true);
+	  expect(validate({type: 'string', format: 'ip-address'},
+					  '127.0.0.1', {validateFormat: true}
+					  ).valid).toBe(true);
+	  expect(validate({type: 'string', format: 'ipv6'},
+					 '2001:0db8:85a3:08d3:1319:8a2e:0370:7344', {validateFormat: true}
+					 ).valid).toBe(true);
+	  expect(validate({type: 'string', format: 'date-time'},
+					 '2011-03-12T08:04:10Z', {validateFormat: true}
+					 ).valid).toBe(true);
+	  expect(validate({type: 'string', format: 'date'},
+					 '2011-21-01', {validateFormat: true}
+					 ).valid).toBe(true);
+	  expect(validate({type: 'string', format: 'time'},
+					 '12:33:11', {validateFormat: true}
+					 ).valid).toBe(true);
+	  expect(validate({type: 'string', format: 'host-name'},
+					 'cancada.org', {validateFormat: true}
+					 ).valid).toBe(true);
+	  expect(validate({type: 'string', format: 'color'},
+					  '#FF0000', {validateFormat: true}
+					 ).valid).toBe(true);
+	  expect(validate({type: 'string', format: 'utc-millisec'},
+					 '123', {validateFormat: true}
+					 ).valid).toBe(true);
+	  expect(validate({type: 'string', format: 'regex'},
+					 "a", {validateFormat: true}
+					 ).valid).toBe(true);
+	  // non standard
+	  expect(validate({type: 'string', format: 'url'},
+					 'hello.world.com%asd', {validateFormat: true}
+					 ).valid).toBe(false);
+	});
+	it('should not validate invalid string formats', function() {
+	  expect(validate({type: 'string', format: 'email'},
+					  'jeff.bozo@bannn@co.hk', {validateFormat: true}
+					 ).valid).toBe(false);
+	  expect(validate({type: 'string', format: 'ip-address'},
+					  '127.0.0.0.1', {validateFormat: true}
+					  ).valid).toBe(false);
+	  expect(validate({type: 'string', format: 'ipv6'},
+					 '2001:0db8:85a3:08d3:1319:8a2e:0370:7344:', {validateFormat: true}
+					 ).valid).toBe(false);
+	  expect(validate({type: 'string', format: 'date-time'},
+					 '2011-03-12T08:04:10', {validateFormat: true}
+					 ).valid).toBe(false);
+	  expect(validate({type: 'string', format: 'date'},
+					 '2011-021-01', {validateFormat: true}
+					 ).valid).toBe(false);
+	  expect(validate({type: 'string', format: 'time'},
+					 '12:333:11', {validateFormat: true}
+					 ).valid).toBe(false);
+	  expect(validate({type: 'string', format: 'host-name'},
+					 '99cancada.org', {validateFormat: true}
+					 ).valid).toBe(false);
+	  expect(validate({type: 'string', format: 'color'},
+					  '#FF00000', {validateFormat: true}
+					 ).valid).toBe(false);
+	  expect(validate({type: 'string', format: 'utc-millisec'},
+					 '-123', {validateFormat: true}
+					 ).valid).toBe(false);
+	  expect(validate({type: 'string', format: 'regex'},
+					 "\\", {validateFormat: true}
+					 ).valid).toBe(false);
+	  // non standard
+	  expect(validate({type: 'string', format: 'url'},
+					 'hello.world.com%asd', {validateFormat: true}
+					 ).valid).toBe(false);
+	});
+  });
+
+
+  describe('5.24. divisibleBy', function() {
+	it('should validate numbers divisible by the number', function() {
+	  expect(validate({type: 'number', divisibleBy: '3'}, 9).valid).toBe(true);
+	});
+	it('should not validate numbers not divisible by the number', function() {
+	  expect(validate({type: 'number', divisibleBy: '3'}, 5).valid).toBe(false);
+	});
   });
 });

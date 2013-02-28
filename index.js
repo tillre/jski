@@ -12,6 +12,8 @@ var messages = {
   // string
   'enum': 'Invalid enum value <%=value%>.',
   'pattern': 'String does not match pattern <%=pattern%>.',
+  'format': 'String is not a valid <%=format%>',
+  'unknownFormat': 'Format <%=format%> is unkown',
   'minLength': 'String has to be at least <%=minLength%> characters long.',
   'maxLength': 'String should not be longer than <%=maxLength%> characters.',
   // number
@@ -19,6 +21,7 @@ var messages = {
   'maximum': 'Number is greater than maximum <%=maximum%>.',
   'exclusiveMinimum': 'Number is less than or equal to exclusive minimum <%=exclusiveMinimum%>.',
   'exclusiveMaximum': 'Number is greater than or equal to exclusive maximum <%=exclusiveMaximum%>.',
+  'divisibleBy': 'Number should be divisible by <%=divisibleBy%>',
   // object
   'dependency': 'Property does not meet dependency.',
   'dependencyNoProp': 'Property of dependency does not exist.',
@@ -43,16 +46,12 @@ var formats = {
   'date-time': /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:.\d{1,3})?Z$/,
   'date': /^\d{4}-\d{2}-\d{2}$/,
   'time': /^\d{2}:\d{2}:\d{2}$/,
-  'color': /^#[a-z0-9]{6}|#[a-z0-9]{3}|(?:rgba?\(\s*(?:[+-]?\d+%?)\s*,\s*(?:[+-]?\d+%?)\s*,\s*(?:[+-]?\d+%?)\s*(?:,\s*(?:[+-]?\d+%?)\s*)?\))|aqua|black|blue|fuchsia|gray|green|lime|maroon|navy|olive|orange|purple|red|silver|teal|white|yellow$/i,
+  'color': /^#[a-z0-9]{6}$|^#[a-z0-9]{3}$|^(?:rgba?\(\s*(?:[+-]?\d+%?)\s*,\s*(?:[+-]?\d+%?)\s*,\s*(?:[+-]?\d+%?)\s*(?:,\s*(?:[+-]?\d+%?)\s*)?\))$/i,
   //'style': (not supported)
   //'phone': (not supported)
   //'uri': (not supported)
   'host-name': /^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])/,
-  'utc-millisec': {
-	test: function (value) {
-	  return _.isNumber(value) && value >= 0;
-	}
-  },
+  'utc-millisec': /^\d+$/,
   'regex': {
 	test: function (value) {
 	  try { new RegExp(value) }
@@ -73,7 +72,7 @@ var error = function(path, msgId, msgData) {
 
 
 var validators = {
-  'string': function(schema, string, path, errors) {
+  'string': function(schema, string, path, errors, options) {
 	if (!_.isString(string)) {
 	  errors.push(error(path, 'type', schema));
 	}
@@ -84,6 +83,14 @@ var validators = {
 	  errors.push(error(path, 'pattern', {pattern: '/' + schema.pattern + '/'}));
 	  return;
 	}
+	if (schema.format) {
+	  if (!formats[schema.format]) {
+		errors.push(error(path, 'unknownFormat', schema));
+	  }
+	  else if (!formats[schema.format].test(string)) {
+		errors.push(error(path, 'format', schema));
+	  }
+	}
 	if (schema.hasOwnProperty('minLength') && string.length < schema.minLength) {
 	  errors.push(error(path, 'minLength', schema));
 	}
@@ -93,7 +100,7 @@ var validators = {
   },
 
   
-  'number': function(schema, number, path, errors) {
+  'number': function(schema, number, path, errors, options) {
 	if (!_.isNumber(number)) {
 	  errors.push(error(path, 'type', schema));
 	  return;
@@ -110,10 +117,14 @@ var validators = {
 	if (schema.hasOwnProperty('exclusiveMaximum') && number >= schema.exclusiveMaximum) {
 	  errors.push(error(path, 'exclusiveMaximum', schema));
 	}
+	if (schema.hasOwnProperty('divisibleBy') && schema.divisibleBy !== 0
+		&& number % schema.divisibleBy !== 0) {
+	  errors.push(error(path, 'divisibleBy', schema));
+	}
   },
 
   
-  'integer': function(schema, integer, path, errors) {
+  'integer': function(schema, integer, path, errors, options) {
 	if (!_.isNumber(integer)) {
 	  errors.push(error(path, 'type', schema));
 	  return;
@@ -121,18 +132,18 @@ var validators = {
 	if (Math.ceil(integer) !== integer) {
 	  errors.push(error(path, 'type', schema));
 	}
-	validators['number'](schema, integer, path, errors);
+	validators['number'](schema, integer, path, errors, options);
   },
 
   
-  'boolean': function(schema, bool, path, errors) {
+  'boolean': function(schema, bool, path, errors, options) {
 	if (!_.isBoolean(bool)) {
 	  errors.push(error(path, 'type', schema));
 	}
   },
 
   
-  'object': function(schema, object, path, errors) {
+  'object': function(schema, object, path, errors, options) {
 	if (!_.isObject(object) || _.isArray(object)) {
 	  errors.push(error(path, 'type', schema));
 	  return;
@@ -158,7 +169,7 @@ var validators = {
 		}
 		else if (_.isObject(dependency)) {
 		  // schema dependency
-		  validate(dependency, object, path, errors);
+		  validate(dependency, object, path, errors, options);
 		}
 	  };
 	  
@@ -176,7 +187,7 @@ var validators = {
 		var subPath = path + '.' + key;
 		
 		if (object.hasOwnProperty(key)) {
-		  validate(subSchema, object[key], subPath, errors);
+		  validate(subSchema, object[key], subPath, errors, options);
 		}
 		else if (subSchema.required) {
 		  errors.push(error(subPath, 'properties'));
@@ -199,14 +210,14 @@ var validators = {
 	  if (schema.additionalProperties || schema.patternProperties) {
 		// property has to validate against either additional schema or pattern schema
 		if (schema.additionalProperties && schema.additionalProperties[key]) {
-		  validate(schema.additionalProperties[key], value, subPath, errors);
+		  validate(schema.additionalProperties[key], value, subPath, errors, options);
 		  return;
 		}
 		// check pattern
 		if (schema.patternProperties) {
 		  for (var i = 0; i < pattern.length; ++i) {
 			if (key.match(new RegExp(pattern[i]))) {
-			  validate(schema.patternProperties[pattern[i]], value, path, errors);
+			  validate(schema.patternProperties[pattern[i]], value, path, errors, options);
 			  return;
 			}
 		  }
@@ -218,7 +229,7 @@ var validators = {
   },
 
   
-  'array': function(schema, array, path, errors) {
+  'array': function(schema, array, path, errors, options) {
 	if (!_.isArray(array)) {
 	  errors.push(error(path, 'type', 'array'));
 	  return;
@@ -248,7 +259,7 @@ var validators = {
 	// validate single item-schema array
 	if (schema.items && !_.isArray(schema.items)) {
 	  _.each(array, function(item, i) {
-		validate(schema.items, item, path + '[' + i + ']', errors);
+		validate(schema.items, item, path + '[' + i + ']', errors, options);
 	  });
 	  return;
 	}
@@ -259,7 +270,7 @@ var validators = {
 	  for (i = 0; i < schema.items.length; ++i) {
 		subPath = '[' + i + ']';
 		if (i < array.length) {
-		  validate(schema.items[i], array[i], subPath, errors);
+		  validate(schema.items[i], array[i], subPath, errors, options);
 		}
 		else {
 		  errors.push(error(subPath), 'tuple');
@@ -285,7 +296,7 @@ var validators = {
 	  if (!_.isArray(schema.additionalItems)) {
 		// continue loop in case i is greater than zero
 		for(; i < array.length; ++i) {
-		  validate(schema.additionalItems, array[i], path + '[' + i + ']', errors);
+		  validate(schema.additionalItems, array[i], path + '[' + i + ']', errors, options);
 		}
 	  }
 	  else {
@@ -294,9 +305,9 @@ var validators = {
 		  var subPath = '[' + i + ']';
 		  var isValid = false;
 		  _.each(schema.additionalItems, function(subSchema) {
-			var errs = [];
-			validate(subSchema, array[i], subPath, errs);
-			isValid = errs.length === 0 ? true : isValid;
+			var localErrors = [];
+			validate(subSchema, array[i], subPath, localErrors, options);
+			isValid = localErrors.length === 0 ? true : isValid;
 		  });
 		  if (!isValid) {
 			errors.push(error(subPath, 'itemNotValid'));
@@ -307,19 +318,19 @@ var validators = {
   },
 
   
-  'null': function(schema, value, path, errors) {
+  'null': function(schema, value, path, errors, options) {
 	if (value !== null) {
 	  errors.push(error(path, 'type', schema));
 	}
   },
 
   
-  'any': function(schema, value, path, errors) {
+  'any': function(schema, value, path, errors, options) {
   }
 };
 
 
-var validate = function(schema, data, path, errors) {
+var validate = function(schema, data, path, errors, options) {
   if (!schema) {
 	return;
   }
@@ -345,7 +356,7 @@ var validate = function(schema, data, path, errors) {
 	  _.each(schema.type, function(type) {
 		if (validators[type]) {
 		  var localErrors = [];
-		  validators[type](schema, data, path, localErrors);
+		  validators[type](schema, data, path, localErrors, options);
 		  if (localErrors.length === 0) {
 			valid = true;
 			return;
@@ -362,7 +373,7 @@ var validate = function(schema, data, path, errors) {
 	else {
 	  // simple type
 	  if (validators[schema.type]) {
-		validators[schema.type](schema, data, path, errors);
+		validators[schema.type](schema, data, path, errors, options);
 	  }
 	  else {
 		errors.push(path, 'unknownType', schema);
@@ -372,10 +383,17 @@ var validate = function(schema, data, path, errors) {
 };
 
 
+var defaultOptions = {
+  validateFormat: false,
+  allowAdditionalProperties: true,
+  allowAdditionalItems: true
+};
+
 // expose validate
-module.exports = function(schema, data) {
+module.exports = function(schema, data, options) {
   var errors = [];
-  validate(schema, data, '', errors);
+  
+  validate(schema, data, '', errors, _.extend(_.clone(defaultOptions), options));
 
   return {
 	valid: errors.length === 0,
