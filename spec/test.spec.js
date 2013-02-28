@@ -15,7 +15,7 @@ describe('Validation of JSON schema', function() {
   });
 
 
-  describe('5.1. types', function() {
+  describe('5.1. type', function() {
 	it('should validate simple types', function() {
 	  expect(validate({type: 'string'}, '').valid).toBe(true);
 	  expect(validate({type: 'number'}, 3.3).valid).toBe(true);
@@ -35,7 +35,7 @@ describe('Validation of JSON schema', function() {
   });
 
 
-  describe('5.2. object properties', function() {
+  describe('5.2. properties', function() {
 	var schema = {type: 'object', properties: {foo: {type: 'number'}, bar: {type: 'null'}}};
 
 	it('should be valid', function() {
@@ -50,7 +50,7 @@ describe('Validation of JSON schema', function() {
   });
   
 
-  describe('5.3. pattern object properties', function() {
+  describe('5.3. pattern properties', function() {
 	var schema = {type: 'object', patternProperties: {'\\w+_bar': {type: 'number'}}};
 
 	it('should be valid', function() {
@@ -62,7 +62,7 @@ describe('Validation of JSON schema', function() {
   });
   
 
-  describe('5.4. additional object properties', function() {
+  describe('5.4. additional properties', function() {
 	var schema = {type: 'object',
 				  properties: {foo: {type: 'number'}, bar: {type: 'null'}},
 				  additionalProperties: {baz: {type: 'string'}}};
@@ -337,5 +337,9 @@ describe('Validation of JSON schema', function() {
 	it('should not validate a string which is too long', function() {
 	  expect(validate({type: 'string', maxLength: 2}, 'foo').valid).toBe(false);
 	});
+  });
+
+
+  describe('5.19. enum', function() {
   });
 });

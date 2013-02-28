@@ -2,9 +2,42 @@
 // joskito - json schema validation
 //
 
+var util = require('util');
 
-var error = function(path, msg) {
-  console.log('error: ', path, msg);
+
+var messages = {
+  'type': 'Value is not of type %s.',
+  // string
+  'pattern': 'String does not match pattern %s.',
+  'minLength': 'String has to be at least %d characters long.',
+  'maxLength': 'String should not be longer than %d characters.',
+  // number
+  'minimum': 'Number is less than minimum %d.',
+  'maximum': 'Number is greater than maximum %d.',
+  'exclusiveMinimum': 'Number is less than or equal to exclusive minimum %d.',
+  'exclusiveMaximum': 'Number is greater than or equal to exclusive maximum %d.',
+  // object
+  'dependency': 'Property does not meet dependency.',
+  'dependencyNoProp': 'Property of dependency does not exist.',
+  'properties': 'Property is missing.',
+  'propertyNotValid': 'Property not valid against any property schema.',
+  'additionalPropertiesFalse': 'Additional property is allowed.',
+  // array
+  'minItems': 'Array should have at least %d items.',
+  'maxItems': 'Array should not have more than %d items.',
+  'uniqueItems': 'Array is not unique. Duplicate item at %d.',
+  'tuple': 'Item is missing from tuple.',
+  'additionalItems': 'Additional items are not allowed',
+  'itemNotValid': 'Item is not valid'
+};
+
+
+var error = function(path, msgId /*, msgArgs...*/) {
+  var msgTmpl = messages[msgId],
+	  msgArgs = [msgTmpl].concat(Array.prototype.slice.call(arguments, 2)),
+	  msg = util.format.apply(util, msgArgs);
+	  
+  console.log(msg);
   return { path: path, message: msg };
 };
 
@@ -17,69 +50,58 @@ var isArray = function(a) {
 var validators = {
   'string': function(schema, string, path, errors) {
 	if (typeof string !== 'string') {
-	  errors.push(error(path, 'Value is not a string'));
+	  errors.push(error(path, 'type', 'string'));
 	}
 	if (schema.pattern && !(new RegExp(schema.pattern)).test(string)) {
-	  errors.push(error(path, 'String does not match pattern'));
+	  errors.push(error(path, 'pattern', '/' + schema.pattern + '/'));
 	}
 	if (schema.hasOwnProperty('minLength') && string.length < schema.minLength) {
-	  errors.push(error(path, 'String is too short'));
+	  errors.push(error(path, 'minLength', schema.minLength));
 	}
 	if (schema.hasOwnProperty('maxLength') && string.length > schema.maxLength) {
-	  errors.push(error(path, 'String is too long'));
+	  errors.push(error(path, 'maxLength', schema.maxLength));
 	}
   },
   
   'number': function(schema, number, path, errors) {
 	if (typeof number !== 'number') {
-	  errors.push(error(path, 'Value is not a number'));
+	  errors.push(error(path, 'wrong type', 'number'));
 	  return;
 	}
 	if (schema.hasOwnProperty('minimum') && number < schema.minimum) {
-	  errors.push(error(path, 'Number is below minimum'));
+	  errors.push(error(path, 'minimum', schema.minimum));
 	}
 	if (schema.hasOwnProperty('maximum') && number > schema.maximum) {
-	  errors.push(error(path, 'Number is greater than the maximum'));
+	  errors.push(error(path, 'maximum', schema.maximum));
 	}
 	if (schema.hasOwnProperty('exclusiveMinimum') && number <= schema.exclusiveMinimum) {
-	  errors.push(error(path, 'Number is equal to or less than exclusive minimum'));
+	  errors.push(error(path, 'exclusiveMinimum', schema.exclusiveMinimum));
 	}
 	if (schema.hasOwnProperty('exclusiveMaximum') && number >= schema.exclusiveMaximum) {
-	  errors.push(error(path, 'Number is equal to or greater than exclusive maximum'));
+	  errors.push(error(path, 'exclusiveMaximum', schema.exclusiveMaximum));
 	}
   },
   
   'integer': function(schema, value, path, errors) {
 	if (typeof value !== 'number') {
-	  errors.push(error(path, 'Value is not a number'));
+	  errors.push(error(path, 'type', 'integer'));
 	  return;
 	}
 	if (Math.ceil(value) !== value) {
-	  errors.push(error(path, 'Value is a number, but not an integer'));
+	  errors.push(error(path, 'type', 'integer'));
 	}
-	if (schema.hasOwnProperty('minimum') && value < schema.minimum) {
-	  errors.push(error(path, 'Integer is below minimum'));
-	}
-	if (schema.hasOwnProperty('maximum') && value > schema.maximum) {
-	  errors.push(error(path, 'Integer is greater than the maximum'));
-	}
-	if (schema.hasOwnProperty('exclusiveMinimum') && value <= schema.exclusiveMinimum) {
-	  errors.push(error(path, 'Integer is equal to or less than exclusive minimum'));
-	}
-	if (schema.hasOwnProperty('exclusiveMaximum') && value >= schema.exclusiveMaximum) {
-	  errors.push(error(path, 'Integer is equal to or greater than exclusive maximum'));
-	}
+	validators['number'](schema, value, path, errors);
   },
 
   'boolean': function(schema, value, path, errors) {
 	if (typeof value !== 'boolean') {
-	  errors.push(error(path, 'Value is not a boolean'));
+	  errors.push(error(path, 'type', 'boolean'));
 	}
   },
   
   'object': function(schema, object, path, errors) {
 	if (typeof object !== 'object' || isArray(object)) {
-	  errors.push(error(path, 'This is not an object'));
+	  errors.push(error(path, 'type', 'object'));
 	  return;
 	}
 	var pattern = schema.patternProperties ? Object.keys(schema.patternProperties) : [];
@@ -94,7 +116,7 @@ var validators = {
 		if (typeof dependency === 'string') {
 		  // simple dependency
 		  if (object.hasOwnProperty(key) && !object.hasOwnProperty(dependency)) {
-			errors.push(error, path + '.' + key, 'Property does not meet dependency');
+			errors.push(error, path + '.' + key, 'dependency');
 		  }
 		}
 		else if (isArray(dependency)) {
@@ -111,7 +133,7 @@ var validators = {
 	  
 	  Object.keys(schema.dependencies).forEach(function(key) {
 		if (!object.hasOwnProperty(key)) {
-		  errors.push(error(path + '.' + key, 'Property does not exist, but has dependency'));
+		  errors.push(error(path + '.' + key, 'dependencyNoProp'));
 		}
 		else checkDep(object, key, schema.dependencies[key]);
 	  });
@@ -129,7 +151,7 @@ var validators = {
 		  validate(schema.properties[key], object[key], subPath, errors);
 		}
 		else if (subSchema.required) {
-		  errors.push(error(subPath, 'Property is missing from object'));
+		  errors.push(error(subPath, 'properties'));
 		}
 	  });
 	}
@@ -145,7 +167,7 @@ var validators = {
 	  var subPath = path + '.' + key;
 	  
 	  if (!additionalAllowed) {
-		errors.push(error(subPath, 'Additional property is not allowed on object'));
+		errors.push(error(subPath, 'additionalPropertiesFalse'));
 		return;
 	  }
 	  if (schema.additionalProperties || schema.patternProperties) {
@@ -164,7 +186,7 @@ var validators = {
 		  }
 		}
 		// no schema with instance name found
-		errors.push(error(subPath, 'Property not allowed on object'));
+		errors.push(error(subPath, 'propertyNotValid'));
 	  }
 	});
 
@@ -172,15 +194,15 @@ var validators = {
   
   'array': function(schema, array, path, errors) {
 	if (!isArray(array)) {
-	  errors.push(error(path, 'Value is not an array'));
+	  errors.push(error(path, 'type', 'array'));
 	  return;
 	}
 	// check min/max
 	if (schema.hasOwnProperty('minItems') && array.length < schema.minItems) {
-	  errors.push(error(path, 'Array has not enough items'));
+	  errors.push(error(path, 'minItems', schema.minItems));
 	}
 	if (schema.hasOwnProperty('maxItems') && array.length > schema.maxItems) {
-	  errors.push(error(path, 'Array has too many items'));
+	  errors.push(error(path, 'maxItems', schema.maxItems));
 	}
 
 	//
@@ -191,7 +213,7 @@ var validators = {
 	  array.forEach(function(item, i) {
 		var str = JSON.stringify(item);
 		if (cache[str]) {
-		  errors.push(error(path, 'Array is not unique'));
+		  errors.push(error(path, 'uniqueItems', i));
 		  return;
 		}
 		cache[str] = true;
@@ -219,7 +241,7 @@ var validators = {
 		  validate(schema.items[i], array[i], subPath, errors);
 		}
 		else {
-		  errors.push(error(subPath), 'Item does not exist in instance');
+		  errors.push(error(subPath), 'tuple');
 		  continue;
 		}
 	  }
@@ -234,7 +256,7 @@ var validators = {
 	// check if no additional items are allowed
 	//
 	if (schema.hasOwnProperty('additionalItems') && !schema.additionalItems) {
-	  errors.push(error(path, 'Additional items are not allowed'));
+	  errors.push(error(path, 'additionalItems'));
 	  return;
 	}
 
@@ -260,7 +282,7 @@ var validators = {
 			isValid = errs.length === 0 ? true : isValid;
 		  });
 		  if (!isValid) {
-			errors.push(error(subPath, 'Item not valid'));
+			errors.push(error(subPath, 'itemNotValid'));
 		  }
 		}
 	  }
@@ -269,7 +291,7 @@ var validators = {
   
   'null': function(schema, value, path, errors) {
 	if (value !== null) {
-	  errors.push(error(path, 'Value is not null'));
+	  errors.push(error(path, 'type', 'null'));
 	}
   },
 
