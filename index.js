@@ -21,7 +21,7 @@ var messages = {
   'maximum': 'Number is greater than maximum <%=maximum%>.',
   'exclusiveMinimum': 'Number is less than or equal to exclusive minimum <%=exclusiveMinimum%>.',
   'exclusiveMaximum': 'Number is greater than or equal to exclusive maximum <%=exclusiveMaximum%>.',
-  'divisibleBy': 'Number should be divisible by <%=divisibleBy%>',
+  'multipleOf': 'Number should be a multiple of <%=multipleOf%>',
   // object
   'dependency': 'Property does not meet dependency.',
   'dependencyNoProp': 'Property of dependency does not exist.',
@@ -105,21 +105,24 @@ var validators = {
 	  errors.push(error(path, 'type', schema));
 	  return;
 	}
-	if (schema.hasOwnProperty('minimum') && number < schema.minimum) {
-	  errors.push(error(path, 'minimum', schema));
+	if (schema.hasOwnProperty('minimum')) {
+	  if (schema.exclusiveMinimum && number <= schema.minimum) {
+		errors.push(error(path, 'exclusiveMinimum', schema));
+	  }
+	  else if (number < schema.minimum) {
+		errors.push(error(path, 'minimum', schema));
+	  }
 	}
-	if (schema.hasOwnProperty('maximum') && number > schema.maximum) {
-	  errors.push(error(path, 'maximum', schema));
+	if (schema.hasOwnProperty('maximum')) {
+	  if (schema.exclusiveMaximum && number >= schema.maximum) {
+		errors.push(error(path, 'exclusiveMaximum', schema));
+	  }
+	  else if (number > schema.maximum) {
+		errors.push(error(path, 'maximum', schema));
+	  }
 	}
-	if (schema.hasOwnProperty('exclusiveMinimum') && number <= schema.exclusiveMinimum) {
-	  errors.push(error(path, 'exclusiveMinimum', schema));
-	}
-	if (schema.hasOwnProperty('exclusiveMaximum') && number >= schema.exclusiveMaximum) {
-	  errors.push(error(path, 'exclusiveMaximum', schema));
-	}
-	if (schema.hasOwnProperty('divisibleBy') && schema.divisibleBy !== 0
-		&& number % schema.divisibleBy !== 0) {
-	  errors.push(error(path, 'divisibleBy', schema));
+	if (schema.hasOwnProperty('multipleOf') && number % schema.multipleOf !== 0) {
+	  errors.push(error(path, 'multipleOf', schema));
 	}
   },
 
@@ -154,30 +157,22 @@ var validators = {
 
 	// check dependencies
 	if (schema.dependencies) {
-	  var checkDep = function(object, key, dependency) {
-		if (_.isString(dependency)) {
-		  // simple dependency
-		  if (object.hasOwnProperty(key) && !object.hasOwnProperty(dependency)) {
-			errors.push(error(path + '.' + key, 'dependency'));
-		  }
-		}
-		else if (_.isArray(dependency)) {
-		  // array of dependencies, recurse
-		  _.each(dependency, function(dep) {
-			checkDep(object, key, dep);
-		  });
-		}
-		else if (_.isObject(dependency)) {
-		  // schema dependency
-		  validate(dependency, object, path, errors, options);
-		}
-	  };
-	  
 	  _.each(schema.dependencies, function(dependency, key) {
 		if (!object.hasOwnProperty(key)) {
 		  errors.push(error(path + '.' + key, 'dependencyNoProp'));
 		}
-		else checkDep(object, key, dependency);
+		if (_.isArray(dependency)) {
+		  // validate property name array dependency
+		  _.each(dependency, function(depProp) {
+			if (!object.hasOwnProperty(depProp)) {
+			  errors.push(error(path + '.' + key, 'dependency'));
+			}
+		  });
+		}
+		else if (_.isObject(dependency)) {
+		  // validate schema dependency
+		  validate(dependency, object, path, errors, options);
+		}
 	  });
 	}
 
@@ -189,7 +184,7 @@ var validators = {
 		if (object.hasOwnProperty(key)) {
 		  validate(subSchema, object[key], subPath, errors, options);
 		}
-		else if (subSchema.required) {
+		else if (schema.required && schema.required.indexOf(key) !== -1) {
 		  errors.push(error(subPath, 'properties'));
 		}
 	  });

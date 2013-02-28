@@ -139,38 +139,27 @@ describe('Validation of JSON schema', function() {
   
   describe('5.7. required', function() {
 	var schema = {type: 'object',
-				  properties: {
-					foo: {type: 'string', require: true},
-					bar: {type: 'number'}
-				  }};
+				  properties: {foo: {type: 'string'}, bar: {type: 'number'}},
+				  required: ['foo', 'bar']
+				 };
 	it('should validate when required property is present', function() {
 	  expect(validate(schema, {foo: '', bar: 42}).valid).toBe(true);
 	});
 	it('should not validate when required property is missing', function() {
-	  expect(validate(schema, {bar: 11}).valid).toBe(true);
+	  expect(validate(schema, {bar: 11}).valid).toBe(false);
 	});
   });
 
   
   describe('5.8. dependencies', function() {
-	var schema = {type: 'object',
-				  properties: {a: {type: 'string'}, 'b': {type: 'number'}},
-				  dependencies: {a: 'b'}};
-	it('should validate object when dependency is met', function() {
-	  expect(validate(schema, {a: '', b: 11}).valid).toBe(true);
-	});
-	it('should not validate object when dependency is not met', function() {
-	  expect(validate(schema, {a: ''}).valid).toBe(false);
-	});
-
-	var simpleArraySchema = {type: 'object',
-							 properties: {a: {type: 'string'}, b: {type: 'number'}},
-							 dependencies: {a: ['b', 'c'], b: 'a', c: ['a', 'b']}};
+	var arraySchema = {type: 'object',
+					   properties: {a: {type: 'string'}, b: {type: 'number'}},
+					   dependencies: {a: ['b', 'c'], b: 'a', c: ['a', 'b']}};
 	it('should validate object with simple array dependencies', function() {
-	  expect(validate(simpleArraySchema, {a: '', b: 11, c: 12}).valid).toBe(true);
+	  expect(validate(arraySchema, {a: '', b: 11, c: 12}).valid).toBe(true);
 	});
 	it('should not validate object when simple array dependencies are not met', function() {
-	  expect(validate(simpleArraySchema, {a: '', b: 11}).valid).toBe(false);
+	  expect(validate(arraySchema, {a: '', b: 11}).valid).toBe(false);
 	});
 
 	var schemaSchema = {type: 'object',
@@ -181,21 +170,6 @@ describe('Validation of JSON schema', function() {
 	});
 	it('should not validate object with schema dependency not met', function() {
 	  expect(validate(schemaSchema, {a: '', b: ''}).valid).toBe(false);
-	});
-
-	var schemaArraySchema = {type: 'object',
-							 properties: {a: {type: 'string'}, b: {type: 'number'}},
-							 dependencies: {
-							   a: [
-								 { properties: {b: {type: 'number', required: true}}},
-								 { properties: {c: {type: 'string', required: true}}}
-							   ]
-							 }};
-	it('should validate object with array of schema dependencies', function() {
-	  expect(validate(schemaArraySchema, {a: '', b: 11, c: ''}).valid).toBe(true);
-	});
-	it('should not validate object with array of schema dependencies not met', function() {
-	  expect(validate(schemaArraySchema, {a: '', b: 11, c: true}).valid).toBe(false);
 	});
   });
 
@@ -239,39 +213,39 @@ describe('Validation of JSON schema', function() {
 
   describe('5.11. exclusive minimum', function() {
 	it('should validate if the number is greater than the minimum', function() {
-	  expect(validate({type: 'number', exclusiveMinimum: 3}, 4.0).valid).toBe(true);
-	  expect(validate({type: 'number', exclusiveMinimum: 3}, 3.1).valid).toBe(true);
+	  expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 4.0).valid).toBe(true);
+	  expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 3.1).valid).toBe(true);
 	});
 	it('should not validate if the number is equal or below the minimum', function() {
-	  expect(validate({type: 'number', exclusiveMinimum: 3}, 3.0).valid).toBe(false);
-	  expect(validate({type: 'number', exclusiveMinimum: 3}, 2.5).valid).toBe(false);
+	  expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 3.0).valid).toBe(false);
+	  expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 2.5).valid).toBe(false);
 	});
 
 	it('should validate if the integer is greater than the minimum', function() {
-	  expect(validate({type: 'integer', exclusiveMinimum: 3}, 4).valid).toBe(true);
+	  expect(validate({type: 'integer', minimum: 3, exclusiveMinimum: true}, 4).valid).toBe(true);
 	});
 	it('should not validate if the integer is equal or below the minimum', function() {
-	  expect(validate({type: 'integer', exclusiveMinimum: 3}, 3).valid).toBe(false);
-	  expect(validate({type: 'integer', exclusiveMinimum: 3}, 2).valid).toBe(false);
+	  expect(validate({type: 'integer', minimum: 3, exclusiveMinimum: true}, 3).valid).toBe(false);
+	  expect(validate({type: 'integer', minimum: 3, exclusiveMinimum: true}, 2).valid).toBe(false);
 	});
   });
 
   
   describe('5.12. exclusive maximum', function() {
 	it('should validate if the number is less than the maximum', function() {
-	  expect(validate({type: 'number', exclusiveMaximum: 3}, 2.9).valid).toBe(true);
+	  expect(validate({type: 'number', maximum: 3, exclusiveMaximum: true}, 2.9).valid).toBe(true);
 	});
 	it('should not validate if the number is equal to or greater than the maximum', function() {
-	  expect(validate({type: 'number', exclusiveMaximum: 3}, 3.0).valid).toBe(false);
-	  expect(validate({type: 'number', exclusiveMaximum: 3}, 3.5).valid).toBe(false);
+	  expect(validate({type: 'number', maximum: 3, exclusiveMaximum: true}, 3.0).valid).toBe(false);
+	  expect(validate({type: 'number', maximum: 3, exclusiveMaximum: true}, 3.5).valid).toBe(false);
 	});
 
 	it('should validate if the integer is less than the maximum', function() {
-	  expect(validate({type: 'integer', exclusiveMaximum: 3}, 2).valid).toBe(true);
+	  expect(validate({type: 'integer', maximum: 3, exclusiveMaximum: true}, 2).valid).toBe(true);
 	});
 	it('should not validate if the integer is equal to or greater than the maximum', function() {
-	  expect(validate({type: 'integer', exclusiveMaximum: 3}, 3).valid).toBe(false);
-	  expect(validate({type: 'integer', exclusiveMaximum: 3}, 4).valid).toBe(false);
+	  expect(validate({type: 'integer', maximum: 3, exclusiveMaximum: true}, 3).valid).toBe(false);
+	  expect(validate({type: 'integer', maximum: 3, exclusiveMaximum: true}, 4).valid).toBe(false);
 	});
   });
 
@@ -427,12 +401,12 @@ describe('Validation of JSON schema', function() {
   });
 
 
-  describe('5.24. divisibleBy', function() {
-	it('should validate numbers divisible by the number', function() {
-	  expect(validate({type: 'number', divisibleBy: '3'}, 9).valid).toBe(true);
+  describe('5.24. multipleOf', function() {
+	it('should validate multiples of number', function() {
+	  expect(validate({type: 'number', multipleOf: '3'}, 9).valid).toBe(true);
 	});
-	it('should not validate numbers not divisible by the number', function() {
-	  expect(validate({type: 'number', divisibleBy: '3'}, 5).valid).toBe(false);
+	it('should not validate numbers which are not multiples', function() {
+	  expect(validate({type: 'number', multipleOf: '3'}, 5).valid).toBe(false);
 	});
   });
 });
