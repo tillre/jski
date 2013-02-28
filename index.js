@@ -15,27 +15,36 @@ var isArray = function(a) {
 
 
 var validators = {
-  'string': function(schema, value, path, errors) {
-	if (typeof value !== 'string') {
+  'string': function(schema, string, path, errors) {
+	if (typeof string !== 'string') {
 	  errors.push(error(path, 'Value is not a string'));
+	}
+	if (schema.pattern && !(new RegExp(schema.pattern)).test(string)) {
+	  errors.push(error(path, 'String does not match pattern'));
+	}
+	if (schema.hasOwnProperty('minLength') && string.length < schema.minLength) {
+	  errors.push(error(path, 'String is too short'));
+	}
+	if (schema.hasOwnProperty('maxLength') && string.length > schema.maxLength) {
+	  errors.push(error(path, 'String is too long'));
 	}
   },
   
-  'number': function(schema, value, path, errors) {
-	if (typeof value !== 'number') {
+  'number': function(schema, number, path, errors) {
+	if (typeof number !== 'number') {
 	  errors.push(error(path, 'Value is not a number'));
 	  return;
 	}
-	if (schema.hasOwnProperty('minimum') && value < schema.minimum) {
+	if (schema.hasOwnProperty('minimum') && number < schema.minimum) {
 	  errors.push(error(path, 'Number is below minimum'));
 	}
-	if (schema.hasOwnProperty('maximum') && value > schema.maximum) {
+	if (schema.hasOwnProperty('maximum') && number > schema.maximum) {
 	  errors.push(error(path, 'Number is greater than the maximum'));
 	}
-	if (schema.hasOwnProperty('exclusiveMinimum') && value <= schema.exclusiveMinimum) {
+	if (schema.hasOwnProperty('exclusiveMinimum') && number <= schema.exclusiveMinimum) {
 	  errors.push(error(path, 'Number is equal to or less than exclusive minimum'));
 	}
-	if (schema.hasOwnProperty('exclusiveMaximum') && value >= schema.exclusiveMaximum) {
+	if (schema.hasOwnProperty('exclusiveMaximum') && number >= schema.exclusiveMaximum) {
 	  errors.push(error(path, 'Number is equal to or greater than exclusive maximum'));
 	}
   },
@@ -68,8 +77,8 @@ var validators = {
 	}
   },
   
-  'object': function(schema, value, path, errors) {
-	if (typeof value !== 'object' || isArray(value)) {
+  'object': function(schema, object, path, errors) {
+	if (typeof object !== 'object' || isArray(object)) {
 	  errors.push(error(path, 'This is not an object'));
 	  return;
 	}
@@ -101,10 +110,10 @@ var validators = {
 	  };
 	  
 	  Object.keys(schema.dependencies).forEach(function(key) {
-		if (!value.hasOwnProperty(key)) {
+		if (!object.hasOwnProperty(key)) {
 		  errors.push(error(path + '.' + key, 'Property does not exist, but has dependency'));
 		}
-		else checkDep(value, key, schema.dependencies[key]);
+		else checkDep(object, key, schema.dependencies[key]);
 	  });
 	}
 
@@ -116,8 +125,8 @@ var validators = {
 		var subPath = path + '.' + key,
 			subSchema = schema.properties[key];
 		
-		if (value.hasOwnProperty(key)) {
-		  validate(schema.properties[key], value[key], subPath, errors);
+		if (object.hasOwnProperty(key)) {
+		  validate(schema.properties[key], object[key], subPath, errors);
 		}
 		else if (subSchema.required) {
 		  errors.push(error(subPath, 'Property is missing from object'));
@@ -128,7 +137,7 @@ var validators = {
 	//
 	// check additional-, pattern- and superfluous-properties
 	//
-	Object.keys(value).forEach(function(key) {
+	Object.keys(object).forEach(function(key) {
 	  if (schema.properties && schema.properties[key]) {
 		// we already checked these
 		return;
@@ -142,14 +151,14 @@ var validators = {
 	  if (schema.additionalProperties || schema.patternProperties) {
 		// property has to validate against either additional schema or pattern schema
 		if (schema.additionalProperties && schema.additionalProperties[key]) {
-		  validate(schema.additionalProperties[key], value[key], subPath, errors);
+		  validate(schema.additionalProperties[key], object[key], subPath, errors);
 		  return;
 		}
 		// check pattern
 		if (schema.patternProperties) {
 		  for (var i = 0; i < pattern.length; ++i) {
 			if (key.match(new RegExp(pattern[i]))) {
-			  validate(schema.patternProperties[pattern[i]], value[key], path, errors);
+			  validate(schema.patternProperties[pattern[i]], object[key], path, errors);
 			  return;
 			}
 		  }
@@ -161,27 +170,39 @@ var validators = {
 
   },
   
-  'array': function(schema, value, path, errors) {
-	if (!isArray(value)) {
+  'array': function(schema, array, path, errors) {
+	if (!isArray(array)) {
 	  errors.push(error(path, 'Value is not an array'));
 	  return;
 	}
 	// check min/max
-	if (schema.hasOwnProperty('minItems') && value.length < schema.minItems) {
+	if (schema.hasOwnProperty('minItems') && array.length < schema.minItems) {
 	  errors.push(error(path, 'Array has not enough items'));
 	}
-	if (schema.hasOwnProperty('maxItems') && value.length > schema.maxItems) {
+	if (schema.hasOwnProperty('maxItems') && array.length > schema.maxItems) {
 	  errors.push(error(path, 'Array has too many items'));
 	}
 
-	// check unique
-	
+	//
+	// test if array only contains unique items
+	//
+	if (schema.uniqueItems) {
+	  var cache = {};
+	  array.forEach(function(item, i) {
+		var str = JSON.stringify(item);
+		if (cache[str]) {
+		  errors.push(error(path, 'Array is not unique'));
+		  return;
+		}
+		cache[str] = true;
+	  });
+	}
 	
 	//
 	// validate single item-schema array
 	//
 	if (schema.items && !isArray(schema.items)) {
-	  value.forEach(function(item, i) {
+	  array.forEach(function(item, i) {
 		validate(schema.items, item, path + '[' + i + ']', errors);
 	  });
 	  return;
@@ -192,10 +213,10 @@ var validators = {
 	//
 	var i = 0;
 	if (schema.items && isArray(schema.items)) {
-	  for (; i < schema.items.length; ++i) {
+	  for (i = 0; i < schema.items.length; ++i) {
 		subPath = '[' + i + ']';
-		if (i < value.length) {
-		  validate(schema.items[i], value[i], subPath, errors);
+		if (i < array.length) {
+		  validate(schema.items[i], array[i], subPath, errors);
 		}
 		else {
 		  errors.push(error(subPath), 'Item does not exist in instance');
@@ -204,7 +225,7 @@ var validators = {
 	  }
 	}
 
-	if (i === value.length) {
+	if (i === array.length) {
 	  // all items validated or array is empty
 	  return;
 	}
@@ -223,18 +244,19 @@ var validators = {
 	if (schema.additionalItems) {
 	  // validate single-schema additional items
 	  if (!isArray(schema.additionalItems)) {
-		for(; i < value.length; ++i) {
-		  validate(schema.additionalItems, value[i], path + '[' + i + ']', errors);
+		// continue loop in case i is greater than zero
+		for(; i < array.length; ++i) {
+		  validate(schema.additionalItems, array[i], path + '[' + i + ']', errors);
 		}
 	  }
 	  else {
 		// validate against an array of additional schemas
-		for(; i < value.length; ++i) {
+		for(; i < array.length; ++i) {
 		  var subPath = '[' + i + ']';
 		  var isValid = false;
 		  schema.additionalItems.forEach(function(subSchema) {
 			var errs = [];
-			validate(subSchema, value[i], subPath, errs);
+			validate(subSchema, array[i], subPath, errs);
 			isValid = errs.length === 0 ? true : isValid;
 		  });
 		  if (!isValid) {

@@ -306,4 +306,36 @@ describe('Validation of JSON schema', function() {
 	  expect(validate({type: 'array', uniqueItems: true}, [1, 2, 2]).valid).toBe(false);
 	});
   });
+
+
+  describe('5.16. pattern', function() {
+	it('should validate a string with matching pattern', function() {
+	  expect(validate({type: 'string', pattern: '^hello$'}, 'hello').valid).toBe(true);
+	});
+	it('should not validate a string which does not match', function() {
+	  expect(validate({type: 'string', pattern: '^hello$'}, 'hello world').valid).toBe(false);
+	});
+  });
+
+
+  describe('5.17. minLength', function() {
+	it('should validate a string which is long enough', function() {
+	  expect(validate({type: 'string', minLength: 2}, 'fo').valid).toBe(true);
+	  expect(validate({type: 'string', minLength: 2}, 'foo').valid).toBe(true);
+	});
+	it('should not validate a string which is too short', function() {
+	  expect(validate({type: 'string', minLength: 2}, 'f').valid).toBe(false);
+	});
+  });
+
+
+  describe('5.18. maxLength', function() {
+	it('should validate a string which is not too long', function() {
+	  expect(validate({type: 'string', maxLength: 2}, 'fo').valid).toBe(true);
+	  expect(validate({type: 'string', maxLength: 2}, 'f').valid).toBe(true);
+	});
+	it('should not validate a string which is too long', function() {
+	  expect(validate({type: 'string', maxLength: 2}, 'foo').valid).toBe(false);
+	});
+  });
 });
