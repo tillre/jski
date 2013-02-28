@@ -11,7 +11,10 @@
   "author": "",
   "license": "BSD",
 
+  "dependencies": {
+	"underscore": "1.4.x"
+  },
   "devDependencies": {
-	  "jasmine-node": "1.3.x" 
+	"jasmine-node": "1.3.x" 
   }
 }

@@ -2,20 +2,23 @@
 // joskito - json schema validation
 //
 
-var util = require('util');
+var _ = require('underscore');
 
 
 var messages = {
-  'type': 'Value is not of type %s.',
+  'type': 'Value is not of type <%=type%>.',
+  'unknownType': 'Type is not known <%=type%>.',
+  'unionTypeNotValid': 'Failed to validate union types.',
   // string
-  'pattern': 'String does not match pattern %s.',
-  'minLength': 'String has to be at least %d characters long.',
-  'maxLength': 'String should not be longer than %d characters.',
+  'enum': 'Invalid enum value <%=value%>.',
+  'pattern': 'String does not match pattern <%=pattern%>.',
+  'minLength': 'String has to be at least <%=minLength%> characters long.',
+  'maxLength': 'String should not be longer than <%=maxLength%> characters.',
   // number
-  'minimum': 'Number is less than minimum %d.',
-  'maximum': 'Number is greater than maximum %d.',
-  'exclusiveMinimum': 'Number is less than or equal to exclusive minimum %d.',
-  'exclusiveMaximum': 'Number is greater than or equal to exclusive maximum %d.',
+  'minimum': 'Number is less than minimum <%=minimum%>.',
+  'maximum': 'Number is greater than maximum <%=maximum%>.',
+  'exclusiveMinimum': 'Number is less than or equal to exclusive minimum <%=exclusiveMinimum%>.',
+  'exclusiveMaximum': 'Number is greater than or equal to exclusive maximum <%=exclusiveMaximum%>.',
   // object
   'dependency': 'Property does not meet dependency.',
   'dependencyNoProp': 'Property of dependency does not exist.',
@@ -23,132 +26,144 @@ var messages = {
   'propertyNotValid': 'Property not valid against any property schema.',
   'additionalPropertiesFalse': 'Additional property is allowed.',
   // array
-  'minItems': 'Array should have at least %d items.',
-  'maxItems': 'Array should not have more than %d items.',
-  'uniqueItems': 'Array is not unique. Duplicate item at %d.',
+  'minItems': 'Array should have at least <%=minItems%> items.',
+  'maxItems': 'Array should not have more than <%=maxItems%> items.',
+  'uniqueItems': 'Array is not unique.',
   'tuple': 'Item is missing from tuple.',
   'additionalItems': 'Additional items are not allowed',
   'itemNotValid': 'Item is not valid'
 };
 
 
-var error = function(path, msgId /*, msgArgs...*/) {
-  var msgTmpl = messages[msgId],
-	  msgArgs = [msgTmpl].concat(Array.prototype.slice.call(arguments, 2)),
-	  msg = util.format.apply(util, msgArgs);
-	  
+var formats = {
+  'date-time': '',
+  'date': '',
+  'time': '',
+  'utc-millisec': '',
+  'regex': '',
+  'color': '',
+  'style': '',
+  'phone': '',
+  'uri': '',
+  'email': '',
+  'ip-address': '',
+  'ipv6': '',
+  'host-name': ''
+};
+
+
+var error = function(path, msgId, msgData) {
+  var msg = _.template(messages[msgId], msgData || {});
   console.log(msg);
   return { path: path, message: msg };
 };
 
 
-var isArray = function(a) {
-  return Object.prototype.toString.call(a) === '[object Array]';
-};
-
-
 var validators = {
   'string': function(schema, string, path, errors) {
-	if (typeof string !== 'string') {
-	  errors.push(error(path, 'type', 'string'));
+	if (!_.isString(string)) {
+	  errors.push(error(path, 'type', schema));
+	}
+	if (schema.enum && schema.enum.indexOf(string) === -1) {
+	  errors.push(error(path, 'enum', {value: string}));
 	}
 	if (schema.pattern && !(new RegExp(schema.pattern)).test(string)) {
-	  errors.push(error(path, 'pattern', '/' + schema.pattern + '/'));
+	  errors.push(error(path, 'pattern', {pattern: '/' + schema.pattern + '/'}));
+	  return;
 	}
 	if (schema.hasOwnProperty('minLength') && string.length < schema.minLength) {
-	  errors.push(error(path, 'minLength', schema.minLength));
+	  errors.push(error(path, 'minLength', schema));
 	}
 	if (schema.hasOwnProperty('maxLength') && string.length > schema.maxLength) {
-	  errors.push(error(path, 'maxLength', schema.maxLength));
+	  errors.push(error(path, 'maxLength', schema));
 	}
   },
+
   
   'number': function(schema, number, path, errors) {
-	if (typeof number !== 'number') {
-	  errors.push(error(path, 'wrong type', 'number'));
+	if (!_.isNumber(number)) {
+	  errors.push(error(path, 'type', schema));
 	  return;
 	}
 	if (schema.hasOwnProperty('minimum') && number < schema.minimum) {
-	  errors.push(error(path, 'minimum', schema.minimum));
+	  errors.push(error(path, 'minimum', schema));
 	}
 	if (schema.hasOwnProperty('maximum') && number > schema.maximum) {
-	  errors.push(error(path, 'maximum', schema.maximum));
+	  errors.push(error(path, 'maximum', schema));
 	}
 	if (schema.hasOwnProperty('exclusiveMinimum') && number <= schema.exclusiveMinimum) {
-	  errors.push(error(path, 'exclusiveMinimum', schema.exclusiveMinimum));
+	  errors.push(error(path, 'exclusiveMinimum', schema));
 	}
 	if (schema.hasOwnProperty('exclusiveMaximum') && number >= schema.exclusiveMaximum) {
-	  errors.push(error(path, 'exclusiveMaximum', schema.exclusiveMaximum));
+	  errors.push(error(path, 'exclusiveMaximum', schema));
 	}
-  },
-  
-  'integer': function(schema, value, path, errors) {
-	if (typeof value !== 'number') {
-	  errors.push(error(path, 'type', 'integer'));
-	  return;
-	}
-	if (Math.ceil(value) !== value) {
-	  errors.push(error(path, 'type', 'integer'));
-	}
-	validators['number'](schema, value, path, errors);
   },
 
-  'boolean': function(schema, value, path, errors) {
-	if (typeof value !== 'boolean') {
-	  errors.push(error(path, 'type', 'boolean'));
-	}
-  },
   
-  'object': function(schema, object, path, errors) {
-	if (typeof object !== 'object' || isArray(object)) {
-	  errors.push(error(path, 'type', 'object'));
+  'integer': function(schema, integer, path, errors) {
+	if (!_.isNumber(integer)) {
+	  errors.push(error(path, 'type', schema));
 	  return;
 	}
-	var pattern = schema.patternProperties ? Object.keys(schema.patternProperties) : [];
+	if (Math.ceil(integer) !== integer) {
+	  errors.push(error(path, 'type', schema));
+	}
+	validators['number'](schema, integer, path, errors);
+  },
+
+  
+  'boolean': function(schema, bool, path, errors) {
+	if (!_.isBoolean(bool)) {
+	  errors.push(error(path, 'type', schema));
+	}
+  },
+
+  
+  'object': function(schema, object, path, errors) {
+	if (!_.isObject(object) || _.isArray(object)) {
+	  errors.push(error(path, 'type', schema));
+	  return;
+	}
+	var pattern = schema.patternProperties ? _.keys(schema.patternProperties) : [];
 	var additionalAllowed = !(schema.hasOwnProperty('additionalProperties')
 							  && !schema.additionalProperties);
 
-	//
 	// check dependencies
-	//
 	if (schema.dependencies) {
 	  var checkDep = function(object, key, dependency) {
-		if (typeof dependency === 'string') {
+		if (_.isString(dependency)) {
 		  // simple dependency
 		  if (object.hasOwnProperty(key) && !object.hasOwnProperty(dependency)) {
-			errors.push(error, path + '.' + key, 'dependency');
+			errors.push(error(path + '.' + key, 'dependency'));
 		  }
 		}
-		else if (isArray(dependency)) {
+		else if (_.isArray(dependency)) {
 		  // array of dependencies, recurse
-		  dependency.forEach(function(dep) {
+		  _.each(dependency, function(dep) {
 			checkDep(object, key, dep);
 		  });
 		}
-		else if (typeof dependency === 'object') {
+		else if (_.isObject(dependency)) {
 		  // schema dependency
 		  validate(dependency, object, path, errors);
 		}
 	  };
 	  
-	  Object.keys(schema.dependencies).forEach(function(key) {
+	  _.each(schema.dependencies, function(dependency, key) {
 		if (!object.hasOwnProperty(key)) {
 		  errors.push(error(path + '.' + key, 'dependencyNoProp'));
 		}
-		else checkDep(object, key, schema.dependencies[key]);
+		else checkDep(object, key, dependency);
 	  });
 	}
 
-	//
 	// check regular properties
-	//
 	if (schema.properties) {
-	  Object.keys(schema.properties).forEach(function(key) {
-		var subPath = path + '.' + key,
-			subSchema = schema.properties[key];
+	  _.each(schema.properties, function(subSchema, key) {
+		var subPath = path + '.' + key;
 		
 		if (object.hasOwnProperty(key)) {
-		  validate(schema.properties[key], object[key], subPath, errors);
+		  validate(subSchema, object[key], subPath, errors);
 		}
 		else if (subSchema.required) {
 		  errors.push(error(subPath, 'properties'));
@@ -156,10 +171,8 @@ var validators = {
 	  });
 	}
 
-	//
 	// check additional-, pattern- and superfluous-properties
-	//
-	Object.keys(object).forEach(function(key) {
+	_.each(object, function(value, key) {
 	  if (schema.properties && schema.properties[key]) {
 		// we already checked these
 		return;
@@ -173,14 +186,14 @@ var validators = {
 	  if (schema.additionalProperties || schema.patternProperties) {
 		// property has to validate against either additional schema or pattern schema
 		if (schema.additionalProperties && schema.additionalProperties[key]) {
-		  validate(schema.additionalProperties[key], object[key], subPath, errors);
+		  validate(schema.additionalProperties[key], value, subPath, errors);
 		  return;
 		}
 		// check pattern
 		if (schema.patternProperties) {
 		  for (var i = 0; i < pattern.length; ++i) {
 			if (key.match(new RegExp(pattern[i]))) {
-			  validate(schema.patternProperties[pattern[i]], object[key], path, errors);
+			  validate(schema.patternProperties[pattern[i]], value, path, errors);
 			  return;
 			}
 		  }
@@ -189,52 +202,47 @@ var validators = {
 		errors.push(error(subPath, 'propertyNotValid'));
 	  }
 	});
-
   },
+
   
   'array': function(schema, array, path, errors) {
-	if (!isArray(array)) {
+	if (!_.isArray(array)) {
 	  errors.push(error(path, 'type', 'array'));
 	  return;
 	}
+
 	// check min/max
 	if (schema.hasOwnProperty('minItems') && array.length < schema.minItems) {
-	  errors.push(error(path, 'minItems', schema.minItems));
+	  errors.push(error(path, 'minItems', schema));
 	}
 	if (schema.hasOwnProperty('maxItems') && array.length > schema.maxItems) {
-	  errors.push(error(path, 'maxItems', schema.maxItems));
+	  errors.push(error(path, 'maxItems', schema));
 	}
 
-	//
 	// test if array only contains unique items
-	//
 	if (schema.uniqueItems) {
 	  var cache = {};
-	  array.forEach(function(item, i) {
+	  _.each(array, function(item, i) {
 		var str = JSON.stringify(item);
 		if (cache[str]) {
-		  errors.push(error(path, 'uniqueItems', i));
+		  errors.push(error(path, 'uniqueItems'));
 		  return;
 		}
 		cache[str] = true;
 	  });
 	}
 	
-	//
 	// validate single item-schema array
-	//
-	if (schema.items && !isArray(schema.items)) {
-	  array.forEach(function(item, i) {
+	if (schema.items && !_.isArray(schema.items)) {
+	  _.each(array, function(item, i) {
 		validate(schema.items, item, path + '[' + i + ']', errors);
 	  });
 	  return;
 	}
 
-	//
 	// validate array tuple schema
-	//
 	var i = 0;
-	if (schema.items && isArray(schema.items)) {
+	if (schema.items && _.isArray(schema.items)) {
 	  for (i = 0; i < schema.items.length; ++i) {
 		subPath = '[' + i + ']';
 		if (i < array.length) {
@@ -252,20 +260,16 @@ var validators = {
 	  return;
 	}
 
-	//
 	// check if no additional items are allowed
-	//
 	if (schema.hasOwnProperty('additionalItems') && !schema.additionalItems) {
 	  errors.push(error(path, 'additionalItems'));
 	  return;
 	}
 
-	//
 	// validate additional items
-	//
 	if (schema.additionalItems) {
 	  // validate single-schema additional items
-	  if (!isArray(schema.additionalItems)) {
+	  if (!_.isArray(schema.additionalItems)) {
 		// continue loop in case i is greater than zero
 		for(; i < array.length; ++i) {
 		  validate(schema.additionalItems, array[i], path + '[' + i + ']', errors);
@@ -276,7 +280,7 @@ var validators = {
 		for(; i < array.length; ++i) {
 		  var subPath = '[' + i + ']';
 		  var isValid = false;
-		  schema.additionalItems.forEach(function(subSchema) {
+		  _.each(schema.additionalItems, function(subSchema) {
 			var errs = [];
 			validate(subSchema, array[i], subPath, errs);
 			isValid = errs.length === 0 ? true : isValid;
@@ -288,13 +292,15 @@ var validators = {
 	  }
 	}
   },
+
   
   'null': function(schema, value, path, errors) {
 	if (value !== null) {
-	  errors.push(error(path, 'type', 'null'));
+	  errors.push(error(path, 'type', schema));
 	}
   },
 
+  
   'any': function(schema, value, path, errors) {
   }
 };
@@ -320,10 +326,10 @@ var validate = function(schema, data, path, errors) {
   }
   
   if (schema.type) {
-	if (isArray(schema.type)) {
+	if (_.isArray(schema.type)) {
 	  // union type
 	  var valid = false;
-	  schema.type.forEach(function(type) {
+	  _.each(schema.type, function(type) {
 		if (validators[type]) {
 		  var localErrors = [];
 		  validators[type](schema, data, path, localErrors);
@@ -333,11 +339,11 @@ var validate = function(schema, data, path, errors) {
 		  }
 		}
 		else {
-		  errors.push(path, 'Unkown type ' + type);
+		  errors.push(path, 'unknownType', {type: type});
 		}
 	  });
 	  if (!valid) {
-		errors.push(path, 'Failed to validate union type');
+		errors.push(path, 'unionTypeNotValid');
 	  }
 	}
 	else {
@@ -346,7 +352,7 @@ var validate = function(schema, data, path, errors) {
 		validators[schema.type](schema, data, path, errors);
 	  }
 	  else {
-		errors.push(path, 'Unkown type ' + schema.type);
+		errors.push(path, 'unknownType', schema);
 	  }
 	}
   }

@@ -341,5 +341,17 @@ describe('Validation of JSON schema', function() {
 
 
   describe('5.19. enum', function() {
+	it('should validate a enum value', function() {
+	  expect(validate({type: 'string', 'enum': ['one', 'two']}, 'two').valid).toBe(true);
+	  expect(validate({type: 'string', 'enum': ['one', 'two']}, 'one').valid).toBe(true);
+	});
+	it('should not validate a non existant enum value', function() {
+	  expect(validate({type: 'string', 'enum': ['one', 'two']}, 'three').valid).toBe(false);
+	});
+  });
+
+
+  describe('5.23. format', function() {
+	
   });
 });
