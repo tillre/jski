@@ -92,7 +92,7 @@ var validators = {
 	  errors.push(error(path, 'pattern', {pattern: '/' + schema.pattern + '/'}));
 	  return;
 	}
-	if (schema.format) {
+	if (schema.format && options.validateFormat) {
 	  if (!formats[schema.format]) {
 		errors.push(error(path, 'unknownFormat', schema));
 	  }
@@ -200,8 +200,10 @@ var validators = {
 	}
 
 	var pattern = schema.patternProperties ? _.keys(schema.patternProperties) : [];
-	var additionalAllowed = !(schema.hasOwnProperty('additionalProperties')
-							  && schema.additionalProperties === false);
+	var additionalAllowed = options.allowAdditionalProperties;
+	if (schema.hasOwnProperty('additionalProperties')) {
+	  additionalAllowed = !!schema.additionalProperties;
+	}
 	
 	// validate properties, additionalProperties and patternProperties
 	_.each(object, function(value, key) {
@@ -264,7 +266,8 @@ var validators = {
 		  return;
 		}
 		
-		if (schema.hasOwnProperty('additionalItems')) {
+		if (schema.hasOwnProperty('additionalItems')
+			|| !options.allowAdditionalItems) {
 		  if (_.isObject(schema.additionalItems)) {
 			// validate against additional items
 			var addErrs = [];
@@ -275,7 +278,7 @@ var validators = {
 			  mutConcat(errors, errs);
 			}
 		  }
-		  else if (!schema.additionalItems) {
+		  else if (!schema.additionalItems || !options.allowAdditionalItems) {
 			// no additional items allowed
 			mutConcat(errors, errs);
 		  }
@@ -384,10 +387,16 @@ var validate = function(schema, value, path, errors, options) {
   // 	}
   // }
 
-  // infer object type
-  if (!schema.type && schema.properties) {
-	schema.type = 'object';
+  // infer type
+  if (!schema.type) {
+	if (schema.properties) {
+	  schema.type = 'object';
+	}
+	else if (schema.items) {
+	  schema.type = 'array';
+	}
   }
+  
 
   // check enum
   if (schema.enum) {

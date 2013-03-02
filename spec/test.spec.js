@@ -9,11 +9,32 @@ describe('Validation of JSON schema', function() {
 	expect(validate({}, {foo: 'bar'}).valid).toBe(true);
   });
 
-  it('is not valid when it has errors', function() {
+  it('should not be valid when it has errors', function() {
 	expect(validate({type: 'string'}, 42).errors.length).toBeGreaterThan(0);
 	expect(validate({type: 'string'}, 42).valid).toBe(false);
   });
 
+  describe('validate method options', function() {
+	it('should respect the validateFormat option', function() {
+	  var schema = {type: 'string', format: 'email'},
+		  value = 'bess@gggg@hhh.com';
+	  expect(validate(schema, value).valid).toBe(true);
+	  expect(validate(schema, value, {validateFormat: true}).valid).toBe(false);
+	});
+	it('should respect the allowAdditionalProperties option', function() {
+	  var schema = {properties: {foo: {type: 'number'}}},
+		  value = {foo: 42, bar: ''};
+	  expect(validate(schema, value).valid).toBe(true);
+	  expect(validate(schema, value, {allowAdditionalProperties: false}).valid).toBe(false);
+	});
+	it ('should respect the allowAdditionalItems option', function() {
+	  var schema = {items: {type: 'string'}},
+		  value = ['', 2, 3];
+	  expect(validate(schema, value).valid).toBe(true);
+	  expect(validate(schema, value, {allowAdditionalItems: false}).valid).toBe(false);
+	});
+  });
+  
   describe('5.1. number and integer', function() {
 	describe('5.1.1. multipleOf', function() {
 	  it('should be a multiple of the value', function() {
