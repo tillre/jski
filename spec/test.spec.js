@@ -14,318 +14,326 @@ describe('Validation of JSON schema', function() {
 	expect(validate({type: 'string'}, 42).valid).toBe(false);
   });
 
-
-  describe('5.1. type', function() {
-	it('should validate simple types', function() {
-	  expect(validate({type: 'string'}, '').valid).toBe(true);
-	  expect(validate({type: 'number'}, 3.3).valid).toBe(true);
-	  expect(validate({type: 'integer'}, 3).valid).toBe(true);
-	  expect(validate({type: 'integer'}, 3.3).valid).toBe(false);
-	  expect(validate({type: 'boolean'}, true).valid).toBe(true);
-	  expect(validate({type: 'object'}, {}).valid).toBe(true);
-	  expect(validate({type: 'array'}, []).valid).toBe(true);
-	  expect(validate({type: 'null'}, null).valid).toBe(true);
-	  expect(validate({type: 'any'}, 123).valid).toBe(true);
+  describe('5.1. number and integer', function() {
+	describe('5.1.1. multipleOf', function() {
+	  it('should be a multiple of the value', function() {
+		expect(validate({type: 'number', multipleOf: '3'}, 9).valid).toBe(true);
+	  });
+	  it('should not validate when not a multiple of the value', function() {
+		expect(validate({type: 'number', multipleOf: '3'}, 5).valid).toBe(false);
+	  });
 	});
 
-	it('should validate union types', function() {
-	  expect(validate({type: ['string', 'number']}, '').valid).toBe(true);
-	  expect(validate({type: ['string', 'number']}, 42).valid).toBe(true);
+	describe('5.1.2. maximum and exclusiveMaximum', function() {
+	  it('should not be greater then the maximum', function() {
+		expect(validate({type: 'number', maximum: 3}, 3.0).valid).toBe(true);
+		expect(validate({type: 'number', maximum: 3}, 2.5).valid).toBe(true);
+		expect(validate({type: 'integer', maximum: 3}, 3).valid).toBe(true);
+		expect(validate({type: 'integer', maximum: 3}, 2).valid).toBe(true);
+	  });
+	  it('should not validate when greater than the maximum', function() {
+		expect(validate({type: 'number', maximum: 3}, 4.0).valid).toBe(false);
+		expect(validate({type: 'integer', maximum: 3}, 4).valid).toBe(false);
+	  });
+
+	  it('should be less than the exclusive max', function() {
+		expect(validate({type: 'number', maximum: 3, exclusiveMaximum: true}, 2.9).valid).toBe(true);
+		expect(validate({type: 'integer', maximum: 3, exclusiveMaximum: true}, 2).valid).toBe(true);
+	  });
+	  it('should not validate when equal to or greater than the exclusive max', function() {
+		expect(validate({type: 'number', maximum: 3, exclusiveMaximum: true}, 3.0).valid).toBe(false);
+		expect(validate({type: 'number', maximum: 3, exclusiveMaximum: true}, 3.5).valid).toBe(false);
+		expect(validate({type: 'integer', maximum: 3, exclusiveMaximum: true}, 3).valid).toBe(false);
+		expect(validate({type: 'integer', maximum: 3, exclusiveMaximum: true}, 4).valid).toBe(false);
+	  });
+	});
+
+	describe('5.1.3. minimum and exclusiveMinimum', function() {
+	  it('should not be less than the minimum', function() {
+		expect(validate({type: 'number', minimum: 3.3}, 3.3).valid).toBe(true);
+		expect(validate({type: 'number', minimum: 3.3}, 4).valid).toBe(true);
+		expect(validate({type: 'integer', minimum: 3}, 3).valid).toBe(true);
+		expect(validate({type: 'integer', minimum: 3}, 4).valid).toBe(true);
+	  });
+	  it('should not validate when less than the minimum', function() {
+		expect(validate({type: 'number', minimum: 3.3}, 3.2).valid).toBe(false);
+		expect(validate({type: 'integer', minimum: 3}, 2).valid).toBe(false);
+	  });
+
+	  it('should be greater than the exclusive minimum ', function() {
+		expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 4.0).valid).toBe(true);
+		expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 3.1).valid).toBe(true);
+		expect(validate({type: 'integer', minimum: 3, exclusiveMinimum: true}, 4).valid).toBe(true);
+	  });
+	  it('should not validate when not greater than the exclusive minimum', function() {
+		expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 3.0).valid).toBe(false);
+		expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 2.5).valid).toBe(false);
+		expect(validate({type: 'integer', minimum: 3, exclusiveMinimum: true}, 3).valid).toBe(false);
+		expect(validate({type: 'integer', minimum: 3, exclusiveMinimum: true}, 2).valid).toBe(false);
+	  });
 	});
   });
 
 
-  describe('5.2. properties', function() {
-	var schema = {type: 'object', properties: {foo: {type: 'number'}, bar: {type: 'null'}}};
+  describe('5.2. strings', function() {
+	describe('5.2.1 maxLength', function() {
+	  it('should not exceed max length', function() {
+		expect(validate({type: 'string', maxLength: 2}, 'fo').valid).toBe(true);
+		expect(validate({type: 'string', maxLength: 2}, 'f').valid).toBe(true);
+	  });
+	  it('should not validate when exceeding max length', function() {
+		expect(validate({type: 'string', maxLength: 2}, 'foo').valid).toBe(false);
+	  });
+	});
 
-	it('should be valid', function() {
-	  expect(validate(schema, {foo: 42, bar: null}).valid).toBe(true);
+	describe('5.2.2. minLength', function() {
+	  it('should be least min characters long', function() {
+		expect(validate({type: 'string', minLength: 2}, 'fo').valid).toBe(true);
+		expect(validate({type: 'string', minLength: 2}, 'foo').valid).toBe(true);
+	  });
+	  it('should not validate when not long enough', function() {
+		expect(validate({type: 'string', minLength: 2}, 'f').valid).toBe(false);
+	  });
+	  
 	});
-	it('should be valid with additional properties not in the schema', function() {
-	  expect(validate(schema, {foo: 42, bar: null, baz: 'hello'}).valid).toBe(true);
-	});
-	it('should not be valid when properties are of the wrong type', function() {
-	  expect(validate(schema, {foo: 42, bar: ""}).valid).toBe(false);
-	});
-  });
-  
 
-  describe('5.3. pattern properties', function() {
-	var schema = {type: 'object', patternProperties: {'\\w+_bar': {type: 'number'}}};
-
-	it('should be valid', function() {
-	  expect(validate(schema, {foo_bar: 1, baz_bar: 2}).valid).toBe(true);
-	});
-	it('should not be valid when not matching', function() {
-	  expect(validate(schema, {foo_bar: 1, bar_foo: 2}).valid).toBe(false);
-	});
-  });
-  
-
-  describe('5.4. additional properties', function() {
-	var schema = {type: 'object',
-				  properties: {foo: {type: 'number'}, bar: {type: 'null'}},
-				  additionalProperties: {baz: {type: 'string'}}};
-
-	it('should be valid with additional defined properties', function() {
-	  expect(validate(schema, {foo: 42, bar: null, baz: ''}).valid).toBe(true);
-	});
-	it('should not be valid when no schema is found for property', function() {
-	  expect(validate(schema, {foo: 42, bar: null, baz: []}).valid).toBe(false);
+	describe('5.2.3. pattern', function() {
+	  it('should match the pattern', function() {
+		expect(validate({type: 'string', pattern: '^hello$'}, 'hello').valid).toBe(true);
+	  });
+	  it('should not validate when not matching the pattern', function() {
+		expect(validate({type: 'string', pattern: '^hello$'}, 'hello world').valid).toBe(false);
+	  });
 	});
   });
 
-
-  describe('5.5. array items', function() {
-	var tupleSchema = {type: 'array',
-					   items: [{type: 'string'}, {type: 'number'}, {type: 'null'}]};
-	
-	it('should validate an array tuple', function() {
-	  expect(validate(tupleSchema, ["hello", 42, null]).valid).toBe(true);
-	});
-	it('should not validate an invalid array tuple', function() {
-	  expect(validate(tupleSchema, ["hello", 42, 123]).valid).toBe(false);
-	});
-	it('should validate an array with additional items', function() {
-	  expect(validate(tupleSchema, ["hello", 42, null, 'go']).valid).toBe(true);
-	});
-
-	var singleSchema = {type: 'array', items: {type: 'boolean'}};
-	it('should validate an array of items conforming to the schema', function() {
-	  expect(validate(singleSchema, [true, false, true]).valid).toBe(true);
-	});
-	it('should not validate an array of items not conforming to the schema', function() {
-	  expect(validate(singleSchema, [true, '', true]).valid).toBe(false);
-	});
-	
-  });
-
-
-  describe('5.6. array of additional items', function() {
-	it('should not validate a array with disallowed additional items', function() {
-	  var schema = {type: 'array',
-					items: [{type: 'number'}, {type: 'boolean'}],
-					additionalItems: false};
-	  expect(validate(schema, [1, true, 3, '']).valid).toBe(false);
-	});
-	it('should validate a array tuple and with additional item', function() {
-	  var schema = {type:'array',
-					items: [{type: 'number'}, {type: 'boolean'}],
-					additionalItems: {type: 'string'}};
-	  expect(validate(schema, [1, false, '']).valid).toBe(true);
-	});
-	it('should validate a array tuple with additional items', function() {
-	  var schema = {type:'array',
-					items: [{type: 'number'}, {type: 'string'}],
-					additionalItems: [{type: 'boolean'}, {type: 'null'}]};
-	  expect(validate(schema, [1, '', null, false, null, true]).valid).toBe(true);
-	});
-	it('should validate a array with a additional item', function() {
-	  var schema = {type: 'array',
-					additionalItems: {type: 'boolean'}};
-	  expect(validate(schema, [false, true, false, true]).valid).toBe(true);
+  describe('5.3. arrays', function() {
+	describe('5.3.1. additionalItems and items', function() {
+	  it('should validate when no additional or items are given', function() {
+		expect(validate({type: 'array'}, [1, 2, 3]).valid).toBe(true);
+	  });
+	  it('should validate when additionalItems is true', function() {
+		expect(validate({type: 'array', items: {type: 'string'}, additionalItems: true},
+						[1, 2, 3]).valid).toBe(true);
+	  });
+	  it('should not validate when no additional items are allowed', function() {
+		expect(validate({type: 'array',
+						 items: {type: 'number'},
+						 additionalItems: false},
+						[1, true, 3, '']).valid).toBe(false);
+	  });
+	  it('should validate with additional items schema', function() {
+		expect(validate({type:'array',
+						 items: {type: 'number'},
+						 additionalItems: {type: 'boolean'}},
+						[1, false, 2]).valid).toBe(true);
+	  });
+	  it('should validate a array with a additional item', function() {
+		expect(validate({type: 'array',
+						 additionalItems: {type: 'boolean'}},
+						[false, 1, false, '']).valid).toBe(true);
+	  });
 	});
 
-	var addSchema = {type: 'array',
-					 additionalItems: [{type: 'boolean'}, {type: 'number'}, {type: 'string'}]};
-	it('should validate a array with additional items in randowm order', function() {
-	  expect(validate(addSchema, [3, 1, true, '', false, '', '']).valid).toBe(true);
-	});
-	it('should not validate an array with invalid additional item', function() {
-	  expect(validate(addSchema, [3, 1, null, '']).valid).toBe(false);
-	});
-  });
-
-  
-  describe('5.7. required', function() {
-	var schema = {type: 'object',
-				  properties: {foo: {type: 'string'}, bar: {type: 'number'}},
-				  required: ['foo', 'bar']
-				 };
-	it('should validate when required property is present', function() {
-	  expect(validate(schema, {foo: '', bar: 42}).valid).toBe(true);
-	});
-	it('should not validate when required property is missing', function() {
-	  expect(validate(schema, {bar: 11}).valid).toBe(false);
-	});
-  });
-
-  
-  describe('5.8. dependencies', function() {
-	var arraySchema = {type: 'object',
-					   properties: {a: {type: 'string'}, b: {type: 'number'}},
-					   dependencies: {a: ['b', 'c'], b: 'a', c: ['a', 'b']}};
-	it('should validate object with simple array dependencies', function() {
-	  expect(validate(arraySchema, {a: '', b: 11, c: 12}).valid).toBe(true);
-	});
-	it('should not validate object when simple array dependencies are not met', function() {
-	  expect(validate(arraySchema, {a: '', b: 11}).valid).toBe(false);
+	describe('5.3.2. maxItems', function() {
+	  it('should have not too many items', function() {
+		expect(validate({type: 'array', maxItems: 3}, [1, 2]).valid).toBe(true);
+		expect(validate({type: 'array', maxItems: 3}, [1, 2, 3]).valid).toBe(true);
+	  });
+	  it('should not validate when has too many items', function() {
+		expect(validate({type: 'array', maxItems: 3}, [1, 2, 3, 4]).valid).toBe(false);
+	  });
 	});
 
-	var schemaSchema = {type: 'object',
-						properties: {a: {type: 'string'}, b: {type: 'number'}},
-						dependencies: {a: { properties: {b: {type: 'number', required: true}}}}};
-	it('should validate object with schema dependency', function() {
-	  expect(validate(schemaSchema, {a: '', b: 11}).valid).toBe(true);
+	describe('5.3.3. minItems', function() {
+	  it('should have least min items', function() {
+		expect(validate({type: 'array', minItems: 3}, [1, 2, 3]).valid).toBe(true);
+		expect(validate({type: 'array', minItems: 3}, [1, 2, 3, 4]).valid).toBe(true);
+	  });
+	  it('should not validate when not has enough items', function() {
+		expect(validate({type: 'array', minItems: 3}, [1, 2]).valid).toBe(false);
+	  });
 	});
-	it('should not validate object with schema dependency not met', function() {
-	  expect(validate(schemaSchema, {a: '', b: ''}).valid).toBe(false);
+
+	describe('5.3.4. uniqueItems', function() {
+	  it('should be unique', function() {
+		expect(validate({type: 'array', uniqueItems: true}, [1, 2, 3]).valid).toBe(true);
+	  });
+	  it('should not validate when not unique', function() {
+		expect(validate({type: 'array', uniqueItems: true}, [1, 2, 2]).valid).toBe(false);
+	  });
 	});
   });
 
 
-  describe('5.9. minimum', function() {
-	it('should validate if the number is greater than or equal to the minimum', function() {
-	  expect(validate({type: 'number', minimum: 3.3}, 3.3).valid).toBe(true);
-	  expect(validate({type: 'number', minimum: 3.3}, 4).valid).toBe(true);
+  describe('5.4. objects', function() {
+	describe('5.4.1. maxProperties', function() {
+	  it('should have not too many properties', function() {
+		expect(validate({type: 'object', maxProperties: 2}, {a: 1, b: 2}).valid).toBe(true);
+		expect(validate({type: 'object', maxProperties: 2}, {a: 1}).valid).toBe(true);
+	  });
+	  it('should not validate when has too many properties', function() {
+		expect(validate({type: 'object', maxProperties: 1}, {a: 1, b: 2}).valid).toBe(false);
+	  });
 	});
-	it('should not validate if the number is below the minimum', function() {
-	  expect(validate({type: 'number', minimum: 3.3}, 3.2).valid).toBe(false);
+	describe('5.4.2. minProperties', function() {
+	  it('should have at least a minimum of properties', function() {
+		expect(validate({type: 'object', minProperties: 1}, {a: 1, b: 2}).valid).toBe(true);
+		expect(validate({type: 'object', minProperties: 1}, {a: 1}).valid).toBe(true);
+	  });
+	  it('should not validate when has not enough properties', function() {
+		expect(validate({type: 'object', minProperties: 2}, {a: 1}).valid).toBe(false);
+	  });
 	});
-	it('should validate if the integer is greate than or equal to the minimum', function() {
-	  expect(validate({type: 'integer', minimum: 3}, 3).valid).toBe(true);
-	  expect(validate({type: 'integer', minimum: 3}, 4).valid).toBe(true);
+	describe('5.4.3. required', function() {
+	  var schema = {type: 'object',
+					properties: {foo: {type: 'string'}, bar: {type: 'number'}},
+					required: ['foo', 'bar']
+				   };
+	  it('should validate when required property is present', function() {
+		expect(validate(schema, {foo: '', bar: 42}).valid).toBe(true);
+	  });
+	  it('should not validate when required property is missing', function() {
+		expect(validate(schema, {bar: 11}).valid).toBe(false);
+	  });
 	});
-	it('should not validate if the integer is below the minimum', function() {
-	  expect(validate({type: 'integer', minimum: 3}, 2).valid).toBe(false);
+	describe('5.4.4.', function() {
+	  describe('properties', function() {
+		var schema = {type: 'object', properties: {foo: {type: 'number'}, bar: {type: 'null'}}};
+
+		it('should be valid', function() {
+		  expect(validate(schema, {foo: 42, bar: null}).valid).toBe(true);
+		});
+		it('should be valid with additional properties not in the schema', function() {
+		  expect(validate(schema, {foo: 42, bar: null, baz: 'hello'}).valid).toBe(true);
+		});
+		it('should not be valid when properties are of the wrong type', function() {
+		  expect(validate(schema, {foo: 42, bar: ""}).valid).toBe(false);
+		});
+	  });
+	  describe('additionalProperties', function() {
+		var schema = {type: 'object',
+					  properties: {foo: {type: 'number'}, bar: {type: 'null'}},
+					  additionalProperties: {baz: {type: 'string'}}};
+
+		it('should validate them', function() {
+		  expect(validate(schema, {foo: 42, bar: null, baz: ''}).valid).toBe(true);
+		});
+		it('should not be valid if instance has wrong tyep', function() {
+		  expect(validate(schema, {foo: 'hello'}).valid).toBe(false);
+		});
+	  });
+	  describe('patternProperties', function() {
+		var schema = {type: 'object',
+					  additionalProperties: false,
+					  patternProperties: {'^\\w+_bar$': {type: 'number'}}};
+
+		it('should match', function() {
+		  expect(validate(schema, {foo_bar: 1, baz_bar: 2}).valid).toBe(true);
+		});
+		it('should not match', function() {
+		  expect(validate(schema, {foo_bar: 1, bar_foo: 2}).valid).toBe(false);
+		});
+	  });
+	});
+	describe('5.4.5. dependencies', function() {
+	  var arraySchema = {type: 'object',
+						 properties: {a: {type: 'string'}, b: {type: 'number'}},
+						 dependencies: {a: ['b', 'c'], b: 'a', c: ['a', 'b']}};
+	  it('should validate object with simple array dependencies', function() {
+		expect(validate(arraySchema, {a: '', b: 11, c: 12}).valid).toBe(true);
+	  });
+	  it('should not validate object when simple array dependencies are not met', function() {
+		expect(validate(arraySchema, {a: '', b: 11}).valid).toBe(false);
+	  });
+
+	  var schemaSchema = {type: 'object',
+						  properties: {a: {type: 'string'}, b: {type: 'number'}},
+						  dependencies: {a: { properties: {b: {type: 'number', required: true}}}}};
+	  it('should validate object with schema dependency', function() {
+		expect(validate(schemaSchema, {a: '', b: 11}).valid).toBe(true);
+	  });
+	  it('should not validate object with schema dependency not met', function() {
+		expect(validate(schemaSchema, {a: '', b: ''}).valid).toBe(false);
+	  });
+	});
+
+	describe('5.5. keywords for any instance', function() {
+	  describe('5.5.1. enum', function() {
+		it('should validate a enum value', function() {
+		  expect(validate({type: 'string', 'enum': ['one', 'two']}, 'two').valid).toBe(true);
+		  expect(validate({type: 'number', 'enum': [1, 2]}, 1).valid).toBe(true);
+		});
+		it('should not validate a non existant enum value', function() {
+		  expect(validate({type: 'string', 'enum': ['one', 'two']}, 'three').valid).toBe(false);
+		  expect(validate({type: 'number', 'enum': [1, 2]}, 3).valid).toBe(false);
+		});
+	  });
+	  describe('5.5.2. type', function() {
+		it('should validate standard types', function() {
+		  expect(validate({type: 'string'}, '').valid).toBe(true);
+		  expect(validate({type: 'number'}, 3.3).valid).toBe(true);
+		  expect(validate({type: 'integer'}, 3).valid).toBe(true);
+		  expect(validate({type: 'integer'}, 3.3).valid).toBe(false);
+		  expect(validate({type: 'boolean'}, true).valid).toBe(true);
+		  expect(validate({type: 'object'}, {}).valid).toBe(true);
+		  expect(validate({type: 'array'}, []).valid).toBe(true);
+		  expect(validate({type: 'null'}, null).valid).toBe(true);
+		  expect(validate({type: 'any'}, 123).valid).toBe(true);
+		});
+
+		it('should validate union types', function() {
+		  expect(validate({type: ['string', 'number']}, '').valid).toBe(true);
+		  expect(validate({type: ['string', 'number']}, 42).valid).toBe(true);
+		});
+	  });
+	  describe('5.5.3. allOf', function() {
+		var schema = {allOf:[
+			{properties: {foo: {type: 'string'}}},
+			{properties: {bar: {type: 'number'}}}
+		  ]};
+		it('should conform to all schemas', function() {
+		  expect(validate(schema, {foo: '', bar: 42}).valid).toBe(true);
+		});
+		it('should not validate when not conforming to all schemas', function() {
+		  expect(validate(schema, {foo: '', bar: false}).valid).toBe(false);
+		});
+	  });
+	  describe('5.5.3. anyOf', function() {
+		var schema = {anyOf: [
+		  {properties: {foo: {type: 'string'}}, additionalProperties: false},
+		  {properties: {bar: {type: 'number'}}, additionalProperties: false},
+		  {properties: {baz: {type: 'boolean'}}, additionalProperties: false}
+		]};
+		it('should conform to any schema', function() {
+		  expect(validate(schema, {foo: ''}).valid).toBe(true);
+		  expect(validate(schema, {bar: 42}).valid).toBe(true);
+		  expect(validate(schema, {baz: true}).valid).toBe(true);
+		});
+		it('should not validate when no conforming to any schema', function() {
+		  expect(validate(schema, {foo: 13}).valid).toBe(false);
+		  expect(validate(schema, {bar: ''}).valid).toBe(false);
+		  expect(validate(schema, {baz: null}).valid).toBe(false);
+		});
+	  });
+	  describe('5.5.3. oneOf', function() {
+		var schema = {oneOf: [
+		  {properties: {foo: {type: 'string'}, bar: {type: 'boolean'}}, additionalProperties: false},
+		  {properties: {foo: {type: 'string'}, bar: {type: 'any'}}, additionalProperties: false}
+		]};
+		it('should conform to only one schema', function() {
+		  expect(validate(schema, {foo: '', bar: 'hello'}).valid).toBe(true);
+		});
+		it('should not validate when more than one schema match', function() {
+		  expect(validate(schema, {foo: '', bar: true}).valid).toBe(false);
+		  expect(validate(schema, {foo: 42, bar: true}).valid).toBe(false);
+		});
+	  });
 	});
   });
 
 
-  describe('5.10. maximum', function() {
-	it('should validate if the number is below the maximum', function() {
-	  expect(validate({type: 'number', maximum: 3}, 3.0).valid).toBe(true);
-	  expect(validate({type: 'number', maximum: 3}, 2.5).valid).toBe(true);
-	});
-	it('should not validate if the number is greater than the maximum', function() {
-	  expect(validate({type: 'number', maximum: 3}, 4.0).valid).toBe(false);
-	});
-
-	it('should validate if the integer is below the maximum', function() {
-	  expect(validate({type: 'integer', maximum: 3}, 3).valid).toBe(true);
-	  expect(validate({type: 'integer', maximum: 3}, 2).valid).toBe(true);
-	});
-	it('should not validate if the integer is greater than the maximum', function() {
-	  expect(validate({type: 'integer', maximum: 3}, 4).valid).toBe(false);
-	});
-  });
-
-
-  describe('5.11. exclusive minimum', function() {
-	it('should validate if the number is greater than the minimum', function() {
-	  expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 4.0).valid).toBe(true);
-	  expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 3.1).valid).toBe(true);
-	});
-	it('should not validate if the number is equal or below the minimum', function() {
-	  expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 3.0).valid).toBe(false);
-	  expect(validate({type: 'number', minimum: 3, exclusiveMinimum: true}, 2.5).valid).toBe(false);
-	});
-
-	it('should validate if the integer is greater than the minimum', function() {
-	  expect(validate({type: 'integer', minimum: 3, exclusiveMinimum: true}, 4).valid).toBe(true);
-	});
-	it('should not validate if the integer is equal or below the minimum', function() {
-	  expect(validate({type: 'integer', minimum: 3, exclusiveMinimum: true}, 3).valid).toBe(false);
-	  expect(validate({type: 'integer', minimum: 3, exclusiveMinimum: true}, 2).valid).toBe(false);
-	});
-  });
-
-  
-  describe('5.12. exclusive maximum', function() {
-	it('should validate if the number is less than the maximum', function() {
-	  expect(validate({type: 'number', maximum: 3, exclusiveMaximum: true}, 2.9).valid).toBe(true);
-	});
-	it('should not validate if the number is equal to or greater than the maximum', function() {
-	  expect(validate({type: 'number', maximum: 3, exclusiveMaximum: true}, 3.0).valid).toBe(false);
-	  expect(validate({type: 'number', maximum: 3, exclusiveMaximum: true}, 3.5).valid).toBe(false);
-	});
-
-	it('should validate if the integer is less than the maximum', function() {
-	  expect(validate({type: 'integer', maximum: 3, exclusiveMaximum: true}, 2).valid).toBe(true);
-	});
-	it('should not validate if the integer is equal to or greater than the maximum', function() {
-	  expect(validate({type: 'integer', maximum: 3, exclusiveMaximum: true}, 3).valid).toBe(false);
-	  expect(validate({type: 'integer', maximum: 3, exclusiveMaximum: true}, 4).valid).toBe(false);
-	});
-  });
-
-  
-  describe('5.13. minItems', function() {
-	it('should validate an array with at least min items', function() {
-	  expect(validate({type: 'array', minItems: 3}, [1, 2, 3]).valid).toBe(true);
-	  expect(validate({type: 'array', minItems: 3}, [1, 2, 3, 4]).valid).toBe(true);
-	});
-	it('should not validate an array with less items', function() {
-	  expect(validate({type: 'array', minItems: 3}, [1, 2]).valid).toBe(false);
-	});
-  });
-
-  
-  describe('5.13. maxItems', function() {
-	it('should validate an array with max items', function() {
-	  expect(validate({type: 'array', maxItems: 3}, [1, 2]).valid).toBe(true);
-	  expect(validate({type: 'array', maxItems: 3}, [1, 2, 3]).valid).toBe(true);
-	});
-	it('should not validate an array with too many items', function() {
-	  expect(validate({type: 'array', maxItems: 3}, [1, 2, 3, 4]).valid).toBe(false);
-	});
-  });
-
-
-  describe('5.14. uniqueItems', function() {
-	it('should validate an array with unique items', function() {
-	  expect(validate({type: 'array', uniqueItems: true}, [1, 2, 3]).valid).toBe(true);
-	});
-	it('should not validate an array with nonunique items', function() {
-	  expect(validate({type: 'array', uniqueItems: true}, [1, 2, 2]).valid).toBe(false);
-	});
-  });
-
-
-  describe('5.16. pattern', function() {
-	it('should validate a string with matching pattern', function() {
-	  expect(validate({type: 'string', pattern: '^hello$'}, 'hello').valid).toBe(true);
-	});
-	it('should not validate a string which does not match', function() {
-	  expect(validate({type: 'string', pattern: '^hello$'}, 'hello world').valid).toBe(false);
-	});
-  });
-
-
-  describe('5.17. minLength', function() {
-	it('should validate a string which is long enough', function() {
-	  expect(validate({type: 'string', minLength: 2}, 'fo').valid).toBe(true);
-	  expect(validate({type: 'string', minLength: 2}, 'foo').valid).toBe(true);
-	});
-	it('should not validate a string which is too short', function() {
-	  expect(validate({type: 'string', minLength: 2}, 'f').valid).toBe(false);
-	});
-  });
-
-
-  describe('5.18. maxLength', function() {
-	it('should validate a string which is not too long', function() {
-	  expect(validate({type: 'string', maxLength: 2}, 'fo').valid).toBe(true);
-	  expect(validate({type: 'string', maxLength: 2}, 'f').valid).toBe(true);
-	});
-	it('should not validate a string which is too long', function() {
-	  expect(validate({type: 'string', maxLength: 2}, 'foo').valid).toBe(false);
-	});
-  });
-
-
-  describe('5.19. enum', function() {
-	it('should validate a enum value', function() {
-	  expect(validate({type: 'string', 'enum': ['one', 'two']}, 'two').valid).toBe(true);
-	  expect(validate({type: 'string', 'enum': ['one', 'two']}, 'one').valid).toBe(true);
-	});
-	it('should not validate a non existant enum value', function() {
-	  expect(validate({type: 'string', 'enum': ['one', 'two']}, 'three').valid).toBe(false);
-	});
-  });
-
-
-  describe('5.23. format', function() {
+  describe('7.3. format', function() {
 	it('should validate string formats', function() {
 	  expect(validate({type: 'string', format: 'email'},
 					  'jeff.bozo@bannn.co.hk', {validateFormat: true}
@@ -401,12 +409,4 @@ describe('Validation of JSON schema', function() {
   });
 
 
-  describe('5.24. multipleOf', function() {
-	it('should validate multiples of number', function() {
-	  expect(validate({type: 'number', multipleOf: '3'}, 9).valid).toBe(true);
-	});
-	it('should not validate numbers which are not multiples', function() {
-	  expect(validate({type: 'number', multipleOf: '3'}, 5).valid).toBe(false);
-	});
-  });
 });

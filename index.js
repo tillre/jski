@@ -9,8 +9,12 @@ var messages = {
   'type': 'Value is not of type <%=type%>.',
   'unknownType': 'Type is not known <%=type%>.',
   'unionTypeNotValid': 'Failed to validate union types.',
-  // string
+  'allOf': 'Value failed to validate against all of the schemas',
+  'anyOf': 'Value failed to validate against any of the schemas',
+  'oneOf': 'Value failed to validate against at least one of the schemas',
+  'notOneOf': 'Value failed to validate against not one schema',
   'enum': 'Invalid enum value <%=value%>.',
+  // string
   'pattern': 'String does not match pattern <%=pattern%>.',
   'format': 'String is not a valid <%=format%>',
   'unknownFormat': 'Format <%=format%> is unkown',
@@ -23,8 +27,11 @@ var messages = {
   'exclusiveMaximum': 'Number is greater than or equal to exclusive maximum <%=exclusiveMaximum%>.',
   'multipleOf': 'Number should be a multiple of <%=multipleOf%>',
   // object
+  'minProperties': 'Object should have at least <%=minProperties%> properties.',
+  'maxProperties': 'Object should have not more than <%=maxProperties%> properties.',
   'dependency': 'Property does not meet dependency.',
   'dependencyNoProp': 'Property of dependency does not exist.',
+  'required': 'Required property <%=property%> does not exist.',
   'properties': 'Property is missing.',
   'propertyNotValid': 'Property not valid against any property schema.',
   'additionalPropertiesFalse': 'Additional property is allowed.',
@@ -71,13 +78,15 @@ var error = function(path, msgId, msgData) {
 };
 
 
+var mutConcat = function(a, b) {
+  _.each(b, function() { a.push(b); });
+};
+
+
 var validators = {
   'string': function(schema, string, path, errors, options) {
 	if (!_.isString(string)) {
 	  errors.push(error(path, 'type', schema));
-	}
-	if (schema.enum && schema.enum.indexOf(string) === -1) {
-	  errors.push(error(path, 'enum', {value: string}));
 	}
 	if (schema.pattern && !(new RegExp(schema.pattern)).test(string)) {
 	  errors.push(error(path, 'pattern', {pattern: '/' + schema.pattern + '/'}));
@@ -151,10 +160,15 @@ var validators = {
 	  errors.push(error(path, 'type', schema));
 	  return;
 	}
-	var pattern = schema.patternProperties ? _.keys(schema.patternProperties) : [];
-	var additionalAllowed = !(schema.hasOwnProperty('additionalProperties')
-							  && !schema.additionalProperties);
 
+	// min/max
+	if (schema.minProperties && _.keys(object).length < schema.minProperties) {
+	  errors.push(error, 'minProperties', schema);
+	}
+	if (schema.maxProperties && _.keys(object).length > schema.maxProperties) {
+	  errors.push(error, 'maxProperties', schema);
+	}
+	
 	// check dependencies
 	if (schema.dependencies) {
 	  _.each(schema.dependencies, function(dependency, key) {
@@ -176,49 +190,39 @@ var validators = {
 	  });
 	}
 
-	// check regular properties
-	if (schema.properties) {
-	  _.each(schema.properties, function(subSchema, key) {
-		var subPath = path + '.' + key;
-		
-		if (object.hasOwnProperty(key)) {
-		  validate(subSchema, object[key], subPath, errors, options);
-		}
-		else if (schema.required && schema.required.indexOf(key) !== -1) {
-		  errors.push(error(subPath, 'properties'));
+	// check required
+	if (schema.required) {
+	  _.each(schema.required, function(reqProp) {
+		if (!object.hasOwnProperty(reqProp)) {
+		  errors.push(error(path + '.' + reqProp, 'required', {property: reqProp}));
 		}
 	  });
 	}
 
-	// check additional-, pattern- and superfluous-properties
+	var pattern = schema.patternProperties ? _.keys(schema.patternProperties) : [];
+	var additionalAllowed = !(schema.hasOwnProperty('additionalProperties')
+							  && schema.additionalProperties === false);
+	
+	// validate properties, additionalProperties and patternProperties
 	_.each(object, function(value, key) {
+	  // check properties
 	  if (schema.properties && schema.properties[key]) {
-		// we already checked these
+		validate(schema.properties[key], value, path + '.' + key, errors, options);
 		return;
 	  }
-	  var subPath = path + '.' + key;
-	  
-	  if (!additionalAllowed) {
-		errors.push(error(subPath, 'additionalPropertiesFalse'));
-		return;
-	  }
-	  if (schema.additionalProperties || schema.patternProperties) {
-		// property has to validate against either additional schema or pattern schema
-		if (schema.additionalProperties && schema.additionalProperties[key]) {
-		  validate(schema.additionalProperties[key], value, subPath, errors, options);
+	  // check pattern properties
+	  for (var i = 0; i < pattern.length; ++i) {
+		if (key.match(new RegExp(pattern[i]))) {
+		  validate(schema.patternProperties[pattern[i]], value, path, errors, options);
 		  return;
 		}
-		// check pattern
-		if (schema.patternProperties) {
-		  for (var i = 0; i < pattern.length; ++i) {
-			if (key.match(new RegExp(pattern[i]))) {
-			  validate(schema.patternProperties[pattern[i]], value, path, errors, options);
-			  return;
-			}
-		  }
-		}
-		// no schema with instance name found
-		errors.push(error(subPath, 'propertyNotValid'));
+	  }
+	  // check additional properties
+	  if (!additionalAllowed) {
+		errors.push(error(path + '.' + key, 'additionalPropertiesFalse'));
+	  }
+	  else if (schema.additionalProperties && schema.additionalProperties[key]) {
+		validate(schema.additionalProperties[key], value, path + '.' + key, errors, options);
 	  }
 	});
   },
@@ -251,64 +255,36 @@ var validators = {
 	  });
 	}
 	
-	// validate single item-schema array
+	// validate items and additionalItems
 	if (schema.items && !_.isArray(schema.items)) {
 	  _.each(array, function(item, i) {
-		validate(schema.items, item, path + '[' + i + ']', errors, options);
-	  });
-	  return;
-	}
-
-	// validate array tuple schema
-	var i = 0;
-	if (schema.items && _.isArray(schema.items)) {
-	  for (i = 0; i < schema.items.length; ++i) {
-		subPath = '[' + i + ']';
-		if (i < array.length) {
-		  validate(schema.items[i], array[i], subPath, errors, options);
+		var errs = [];
+		validate(schema.items, item, path + '[' + i + ']', errs, options);
+		if (errs.length === 0) {
+		  return;
 		}
-		else {
-		  errors.push(error(subPath), 'tuple');
-		  continue;
-		}
-	  }
-	}
-
-	if (i === array.length) {
-	  // all items validated or array is empty
-	  return;
-	}
-
-	// check if no additional items are allowed
-	if (schema.hasOwnProperty('additionalItems') && !schema.additionalItems) {
-	  errors.push(error(path, 'additionalItems'));
-	  return;
-	}
-
-	// validate additional items
-	if (schema.additionalItems) {
-	  // validate single-schema additional items
-	  if (!_.isArray(schema.additionalItems)) {
-		// continue loop in case i is greater than zero
-		for(; i < array.length; ++i) {
-		  validate(schema.additionalItems, array[i], path + '[' + i + ']', errors, options);
-		}
-	  }
-	  else {
-		// validate against an array of additional schemas
-		for(; i < array.length; ++i) {
-		  var subPath = '[' + i + ']';
-		  var isValid = false;
-		  _.each(schema.additionalItems, function(subSchema) {
-			var localErrors = [];
-			validate(subSchema, array[i], subPath, localErrors, options);
-			isValid = localErrors.length === 0 ? true : isValid;
-		  });
-		  if (!isValid) {
-			errors.push(error(subPath, 'itemNotValid'));
+		
+		if (schema.hasOwnProperty('additionalItems')) {
+		  if (_.isObject(schema.additionalItems)) {
+			// validate against additional items
+			var addErrs = [];
+			validate(schema.additionalItems, item, path + '[' + i + ']', addErrs, options);
+			console.log('additional items validation', addErrs);
+			if (addErrs.length > 0) {
+			  // show errors from items
+			  mutConcat(errors, errs);
+			}
+		  }
+		  else if (!schema.additionalItems) {
+			// no additional items allowed
+			mutConcat(errors, errs);
 		  }
 		}
-	  }
+	  });
+	}
+
+	if (schema.items && _.isArray(schema.items)) {
+	  return; // TODO: implement tuple typing
 	}
   },
 
@@ -321,11 +297,80 @@ var validators = {
 
   
   'any': function(schema, value, path, errors, options) {
+  },
+
+  
+  'allOf': function(schema, value, path, errors, options) {
+	_.each(schema.allOf, function(schema) {
+	  validate(schema, value, path, errors, options);
+	});
+  },
+
+
+  'anyOf': function(schema, value, path, errors, options) {
+	var valid = false;
+	_.each(schema.anyOf, function(schema) {
+	  var localErrors = [];
+	  validate(schema, value, path, localErrors, options);
+	  valid = localErrors.length === 0 ? true : valid;
+	});
+	if (!valid) {
+	  errors.push(error(path, 'anyOf'));
+	}
+  },
+
+  
+  'oneOf': function(schema, value, path, errors, options) {
+	var numValid = 0;
+	_.each(schema.oneOf, function(schema) {
+	  var localErrors = [];
+	  validate(schema, value, path, localErrors, options);
+	  if (localErrors.length === 0) numValid++;
+	});
+	if (numValid === 0) {
+	  errors.push(error(path, 'notOneOf'));
+	}
+	if (numValid > 1) {
+	  errors.push(error(path, 'oneOf'));
+	}
+  },
+
+  
+  'type': function(schema, value, path, errors, options) {
+	if (_.isArray(schema.type)) {
+	  // union type
+	  var valid = false;
+	  _.each(schema.type, function(type) {
+		if (validators[type]) {
+		  var localErrors = [];
+		  validators[type](schema, value, path, localErrors, options);
+		  if (localErrors.length === 0) {
+			valid = true;
+			return;
+		  }
+		}
+		else {
+		  errors.push(path, 'unknownType', {type: type});
+		}
+	  });
+	  if (!valid) {
+		errors.push(path, 'unionTypeNotValid');
+	  }
+	}
+	else {
+	  // simple type
+	  if (validators[schema.type]) {
+		validators[schema.type](schema, value, path, errors, options);
+	  }
+	  else {
+		errors.push(path, 'unknownType', schema);
+	  }
+	}
   }
 };
 
 
-var validate = function(schema, data, path, errors, options) {
+var validate = function(schema, value, path, errors, options) {
   if (!schema) {
 	return;
   }
@@ -343,37 +388,25 @@ var validate = function(schema, data, path, errors, options) {
   if (!schema.type && schema.properties) {
 	schema.type = 'object';
   }
-  
-  if (schema.type) {
-	if (_.isArray(schema.type)) {
-	  // union type
-	  var valid = false;
-	  _.each(schema.type, function(type) {
-		if (validators[type]) {
-		  var localErrors = [];
-		  validators[type](schema, data, path, localErrors, options);
-		  if (localErrors.length === 0) {
-			valid = true;
-			return;
-		  }
-		}
-		else {
-		  errors.push(path, 'unknownType', {type: type});
-		}
-	  });
-	  if (!valid) {
-		errors.push(path, 'unionTypeNotValid');
-	  }
+
+  // check enum
+  if (schema.enum) {
+	if (schema.enum && schema.enum.indexOf(value) === -1) {
+	  errors.push(error(path, 'enum', {value: value}));
 	}
-	else {
-	  // simple type
-	  if (validators[schema.type]) {
-		validators[schema.type](schema, data, path, errors, options);
-	  }
-	  else {
-		errors.push(path, 'unknownType', schema);
-	  }
-	}
+  }
+
+  if (schema.oneOf) {
+	validators.oneOf(schema, value, path, errors, options);
+  }
+  else if (schema.allOf) {
+	validators.allOf(schema, value, path, errors, options);
+  }
+  else if (schema.anyOf) {
+	validators.anyOf(schema, value, path, errors, options);
+  }
+  else if (schema.type) {
+	validators.type(schema, value, path, errors, options);
   }
 };
 
