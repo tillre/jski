@@ -61,7 +61,7 @@ var formats = {
   'utc-millisec': /^\d+$/,
   'regex': {
 	test: function (value) {
-	  try { new RegExp(value) }
+	  try { var re = new RegExp(value); }
 	  catch (e) { return false }
 	  return true;
 	}
@@ -73,7 +73,6 @@ var formats = {
 
 var error = function(path, msgId, msgData) {
   var msg = _.template(messages[msgId], msgData || {});
-  console.log(msg);
   return { path: path, message: msg };
 };
 
