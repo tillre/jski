@@ -419,17 +419,16 @@ var validate = function(schema, value, path, errors, options) {
 };
 
 
-var defaultOptions = {
-  validateFormat: false,
-  allowAdditionalProperties: true,
-  allowAdditionalItems: true
-};
-
 // expose validate
 module.exports = function(schema, data, options) {
-  var errors = [];
+  var errors = [],
+	  defaultOptions = {
+		validateFormat: false,
+		allowAdditionalProperties: true,
+		allowAdditionalItems: true
+	  };
   
-  validate(schema, data, '', errors, _.extend(_.clone(defaultOptions), options));
+  validate(schema, data, '', errors, _.extend(defaultOptions, options));
 
   return {
 	valid: errors.length === 0,
