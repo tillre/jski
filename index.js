@@ -12,11 +12,11 @@ var messages = {
   'allOf': 'Value failed to validate against all of the schemas',
   'anyOf': 'Value failed to validate against any of the schemas',
   'oneOf': 'Value failed to validate against at least one of the schemas',
-  'notOneOf': 'Value failed to validate against not one schema',
+  'notOneOf': 'Value validated against multiples schemas',
   'enum': 'Invalid enum value <%=value%>.',
   // string
   'pattern': 'String does not match pattern <%=pattern%>.',
-  'format': 'String is not a valid <%=format%>',
+  'format': 'Value is not a valid <%=format%>',
   'unknownFormat': 'Format <%=format%> is unkown',
   'minLength': 'String has to be at least <%=minLength%> characters long.',
   'maxLength': 'String should not be longer than <%=maxLength%> characters.',
@@ -32,16 +32,11 @@ var messages = {
   'dependency': 'Property does not meet dependency.',
   'dependencyNoProp': 'Property of dependency does not exist.',
   'required': 'Required property <%=property%> does not exist.',
-  'properties': 'Property is missing.',
-  'propertyNotValid': 'Property not valid against any property schema.',
-  'additionalPropertiesFalse': 'Additional property is allowed.',
+  'additionalProperties': 'Additional property is not allowed.',
   // array
   'minItems': 'Array should have at least <%=minItems%> items.',
   'maxItems': 'Array should not have more than <%=maxItems%> items.',
-  'uniqueItems': 'Array is not unique.',
-  'tuple': 'Item is missing from tuple.',
-  'additionalItems': 'Additional items are not allowed',
-  'itemNotValid': 'Item is not valid'
+  'uniqueItems': 'Array is not unique.'
 };
 
 
@@ -73,6 +68,7 @@ var formats = {
 
 var error = function(path, msgId, msgData) {
   var msg = _.template(messages[msgId], msgData || {});
+  console.log(msg);
   return { path: path, message: msg };
 };
 
@@ -220,7 +216,7 @@ var validators = {
 	  }
 	  // check additional properties
 	  if (!additionalAllowed) {
-		errors.push(error(path + '.' + key, 'additionalPropertiesFalse'));
+		errors.push(error(path + '.' + key, 'additionalProperties'));
 	  }
 	  else if (schema.additionalProperties && schema.additionalProperties[key]) {
 		validate(schema.additionalProperties[key], value, path + '.' + key, errors, options);
@@ -329,10 +325,10 @@ var validators = {
 	  if (localErrors.length === 0) numValid++;
 	});
 	if (numValid === 0) {
-	  errors.push(error(path, 'notOneOf'));
+	  errors.push(error(path, 'oneOf'));
 	}
 	if (numValid > 1) {
-	  errors.push(error(path, 'oneOf'));
+	  errors.push(error(path, 'notOneOf'));
 	}
   },
 
