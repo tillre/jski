@@ -68,7 +68,6 @@ var formats = {
 
 var error = function(path, msgId, msgData) {
   var msg = _.template(messages[msgId], msgData || {});
-  console.log(msg);
   return { path: path, message: msg };
 };
 
@@ -202,6 +201,10 @@ var validators = {
 	
 	// validate properties, additionalProperties and patternProperties
 	_.each(object, function(value, key) {
+	  // omit property names defined in the options
+	  if (options.omitProperties && options.omitProperties.indexOf(key) !== -1) {
+		return;
+	  }
 	  // check properties
 	  if (schema.properties && schema.properties[key]) {
 		validate(schema.properties[key], value, path + '.' + key, errors, options);
@@ -418,9 +421,14 @@ var validate = function(schema, value, path, errors, options) {
 module.exports = function(schema, data, options) {
   var errors = [],
 	  defaultOptions = {
+		// always validate formats
 		validateFormat: false,
+		// allow/disallow additional properties when not specified otherwise
 		additionalProperties: true,
-		additionalItems: true
+		// allow/disallow additional items when not specified otherwise
+		additionalItems: true,
+		// array of property names to be omitted during validation
+		omitProperties: null
 	  };
   
   validate(schema, data, '', errors, _.extend(defaultOptions, options));

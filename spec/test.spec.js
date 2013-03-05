@@ -27,11 +27,19 @@ describe('Validation of JSON schema', function() {
 	  expect(validate(schema, value).valid).toBe(true);
 	  expect(validate(schema, value, {additionalProperties: false}).valid).toBe(false);
 	});
-	it ('should respect the additionalItems option', function() {
+	it('should respect the additionalItems option', function() {
 	  var schema = {items: {type: 'string'}},
 		  value = ['', 2, 3];
 	  expect(validate(schema, value).valid).toBe(true);
 	  expect(validate(schema, value, {additionalItems: false}).valid).toBe(false);
+	});
+	it('should omit properties while validating', function() {
+	  var schema = {properties: {foo: {type: 'string'}}},
+		  value = {foo: '', bar: 11};
+	  expect(validate(schema, value).valid).toBe(true);
+	  expect(validate(schema, value, {additionalProperties: false}).valid).toBe(false);
+	  expect(validate(schema, value, {omitProperties: ['bar'], additionalItems: false}
+					 ).valid).toBe(true);
 	});
   });
   
