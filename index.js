@@ -199,7 +199,7 @@ var validators = {
 	}
 
 	var pattern = schema.patternProperties ? _.keys(schema.patternProperties) : [];
-	var additionalAllowed = options.allowAdditionalProperties;
+	var additionalAllowed = options.additionalProperties;
 	if (schema.hasOwnProperty('additionalProperties')) {
 	  additionalAllowed = !!schema.additionalProperties;
 	}
@@ -266,18 +266,17 @@ var validators = {
 		}
 		
 		if (schema.hasOwnProperty('additionalItems')
-			|| !options.allowAdditionalItems) {
+			|| !options.additionalItems) {
 		  if (_.isObject(schema.additionalItems)) {
 			// validate against additional items
 			var addErrs = [];
 			validate(schema.additionalItems, item, path + '[' + i + ']', addErrs, options);
-			console.log('additional items validation', addErrs);
 			if (addErrs.length > 0) {
 			  // show errors from items
 			  mutConcat(errors, errs);
 			}
 		  }
-		  else if (!schema.additionalItems || !options.allowAdditionalItems) {
+		  else if (!schema.additionalItems || !options.additionalItems) {
 			// no additional items allowed
 			mutConcat(errors, errs);
 		  }
@@ -424,8 +423,8 @@ module.exports = function(schema, data, options) {
   var errors = [],
 	  defaultOptions = {
 		validateFormat: false,
-		allowAdditionalProperties: true,
-		allowAdditionalItems: true
+		additionalProperties: true,
+		additionalItems: true
 	  };
   
   validate(schema, data, '', errors, _.extend(defaultOptions, options));
