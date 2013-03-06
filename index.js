@@ -13,7 +13,8 @@ var messages = {
   'anyOf': 'Value failed to validate against any of the schemas',
   'oneOf': 'Value failed to validate against at least one of the schemas',
   'notOneOf': 'Value validated against multiples schemas',
-  'enum': 'Invalid enum value <%=value%>.',
+  'enum': 'Value is not an enum type <%=value%>.',
+  'enumNoArray': 'Schema enum property is not an array.',
   // string
   'pattern': 'String does not match pattern <%=pattern%>.',
   'format': 'Value is not a valid <%=format%>',
@@ -308,6 +309,21 @@ var validators = {
 	return [];
   },
 
+
+  'enum': function(schema, value, path, options) {
+	if (!_.isArray(schema.enum)) {
+	  return addError([], path, 'enumNoArray');
+	}
+	// compare enum values on string basis
+	var vstr = JSON.stringify(value),
+		strs = _.map(schema.enum, JSON.stringify);
+	
+	if (strs.indexOf(vstr) === -1) {
+  	  return addError([], path, 'enum', {value: value});
+  	}
+	return [];
+  },
+  
   
   'allOf': function(schema, value, path, options) {
 	var errors = [];
@@ -408,14 +424,10 @@ var validate = function(schema, value, path, options) {
 
   var errors = [];
 
-  // check enum
   if (schema.enum) {
-	if (schema.enum && schema.enum.indexOf(value) === -1) {
-	  addError(errors, path, 'enum', {value: value});
-	}
+	addErrors(errors, validators.enum(schema, value, path, options));
   }
-
-  if (schema.oneOf) {
+  else if (schema.oneOf) {
 	addErrors(errors, validators.oneOf(schema, value, path, options));
   }
   else if (schema.allOf) {
