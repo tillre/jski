@@ -1,5 +1,5 @@
 //
-// joskito - json schema validation
+// jski - json schema validation
 //
 
 var _ = require('underscore');

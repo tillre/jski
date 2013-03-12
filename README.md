@@ -1,4 +1,4 @@
-joskito - work in progress
-==========================
+jski - work in progress
+=======================
 
 json schema validator
