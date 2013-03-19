@@ -15,18 +15,21 @@ var messages = {
   'notOneOf': 'Value validated against multiples schemas',
   'enum': 'Value is not an enum type <%=value%>.',
   'enumNoArray': 'Schema enum property is not an array.',
+
   // string
   'pattern': 'String does not match pattern <%=pattern%>.',
   'format': 'Value is not a valid <%=format%>',
   'unknownFormat': 'Format <%=format%> is unkown',
   'minLength': 'String has to be at least <%=minLength%> characters long.',
   'maxLength': 'String should not be longer than <%=maxLength%> characters.',
+
   // number
   'minimum': 'Number is less than minimum <%=minimum%>.',
   'maximum': 'Number is greater than maximum <%=maximum%>.',
   'exclusiveMinimum': 'Number is less than or equal to exclusive minimum <%=exclusiveMinimum%>.',
   'exclusiveMaximum': 'Number is greater than or equal to exclusive maximum <%=exclusiveMaximum%>.',
   'multipleOf': 'Number should be a multiple of <%=multipleOf%>',
+
   // object
   'minProperties': 'Object should have at least <%=minProperties%> properties.',
   'maxProperties': 'Object should have not more than <%=maxProperties%> properties.',
@@ -34,10 +37,14 @@ var messages = {
   'dependencyNoProp': 'Property of dependency does not exist.',
   'required': 'Required property does not exist.',
   'additionalProperties': 'Additional property is not allowed.',
+
   // array
   'minItems': 'Array should have at least <%=minItems%> items.',
   'maxItems': 'Array should not have more than <%=maxItems%> items.',
-  'uniqueItems': 'Array is not unique.'
+  'uniqueItems': 'Array is not unique.',
+
+  // subschema
+  '$ref': 'Subschema not found'
 };
 
 
@@ -437,15 +444,6 @@ function validate(schema, value, path, options) {
   if (!schema) {
     return [];
   }
-  // if (schema.$ref) {
-  //    if (schemas[schema.$ref]) {
-  //        // TODO: replace schema at this point with schema from reference
-  //      _.extend(schema, subSchema);
-  //    }
-  //    else {
-  //        errors.push(error(path, 'Could not resolve schema ' + schema.$ref));
-  //    }
-  // }
 
   // infer type
   if (!schema.type) {
@@ -474,12 +472,23 @@ function validate(schema, value, path, options) {
   else if (schema.type) {
     addErrors(errors, validators.type(schema, value, path, options));
   }
+  else if (schema.$ref) {
+    var subSchema = options.definitions[schema.$ref];
+    if (!subSchema) {
+      addError(errors, schema, value, path, options, '$ref');
+    }
+    else {
+      addErrors(errors, validate(subSchema, value, path, options));
+    }
+  }
   return errors;
 }
 
 
 // expose validate
 module.exports = function(schema, data, options) {
+  schema = schema || {};
+  
   var errors = [],
       defaultOptions = {
         // always validate formats
@@ -491,10 +500,16 @@ module.exports = function(schema, data, options) {
         // array of property names to be omitted during validation
         omitProperties: null,
         // called on each error
-        onError: null
+        onError: null,
+        // subschema definitions
+        definitions: {}
       };
+
+  _.extend(defaultOptions, options);
+  // deviate from the spec and just lookup $ref value directly in the definitions
+  _.extend(defaultOptions.definitions, schema.definitions);
   
-  errors = validate(schema, data, '', _.extend(defaultOptions, options));
+  errors = validate(schema, data, '', defaultOptions);
 
   return errors.length > 0 ? errors : null;
 };

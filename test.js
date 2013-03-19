@@ -55,6 +55,31 @@ describe('Validation of JSON schema', function() {
       expect(errors[1].hello).to.be.true;
     });
   });
+
+  describe('subschemas', function() {
+    it('should resolve subschemas', function() {
+      expect(validate({
+        definitions: {
+          'foo': { type: 'string' }, 'bar': { properties: { baz: { type: 'number' }}}
+        },
+        properties: {
+          'one': { $ref: 'foo' },
+          'two': { $ref: 'bar' }
+        }
+      }, {one: '', two: { baz: 42 }})).to.be.null;
+    });
+    it('should not validate when not matching subschema', function() {
+      expect(validate({
+        definitions: {
+          'foo': { type: 'string' }, 'bar': { properties: { baz: { type: 'number' }}}
+        },
+        properties: {
+          'one': { $ref: 'foo' },
+          'two': { $ref: 'bar' }
+        }
+      }, {one: '', two: { baz: true }})).to.be.a('array');
+    });
+  });
   
   describe('5.1. number and integer', function() {
     describe('5.1.1. multipleOf', function() {
