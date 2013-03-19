@@ -169,7 +169,8 @@ var validators = {
       return addError(errors, schema, object, path, options, 'type');
     }
 
-    // min/max
+    // validate min/max
+    
     if (schema.minProperties && _.keys(object).length < schema.minProperties) {
       addError(errors, schema, object, path, options, 'minProperties');
     }
@@ -177,7 +178,8 @@ var validators = {
       addError(errors, schema, object, path, options, 'maxProperties');
     }
     
-    // check dependencies
+    // validate dependencies
+    
     if (schema.dependencies) {
       _.each(schema.dependencies, function(dependency, key) {
         if (!object.hasOwnProperty(key)) {
@@ -198,7 +200,8 @@ var validators = {
       });
     }
 
-    // check required
+    // validate required
+    
     if (schema.required) {
       _.each(schema.required, function(reqProp) {
         if (!object.hasOwnProperty(reqProp)) {
@@ -215,24 +218,31 @@ var validators = {
     }
     
     // validate properties, additionalProperties and patternProperties
+    
     _.each(object, function(value, key) {
       // omit property names defined in the options
       if (options.omitProperties && options.omitProperties.indexOf(key) !== -1) {
         return;
       }
-      // check properties
+
+      // validate properties
+
       if (schema.properties && schema.properties[key]) {
         addErrors(errors, validate(schema.properties[key], value, path + '.' + key, options));
         return;
       }
-      // check pattern properties
+
+      // validate pattern properties
+
       for (var i = 0; i < pattern.length; ++i) {
         if (key.match(new RegExp(pattern[i]))) {
           addErrors(errors, validate(schema.patternProperties[pattern[i]], value, path, options));
           return;
         }
       }
-      // check additional properties
+
+      // validate additional properties
+
       if (!additionalAllowed) {
         addError(errors, schema, object, path + '.' + key, options, 'additionalProperties');
       }
@@ -251,7 +261,8 @@ var validators = {
       return addError(errors, schema, array, path, options, 'type');
     }
 
-    // check min/max
+    // validate min/max
+
     if (schema.hasOwnProperty('minItems') && array.length < schema.minItems) {
       addError(errors, schema, array, path, options, 'minItems');
     }
@@ -259,7 +270,8 @@ var validators = {
       addError(errors, schema, array, path, options, 'maxItems');
     }
 
-    // test if array only contains unique items
+    // validate unique items
+
     if (schema.uniqueItems) {
       var cache = {};
       _.each(array, function(item, i) {
@@ -273,15 +285,33 @@ var validators = {
     }
     
     // validate items and additionalItems
-    if (schema.items && !_.isArray(schema.items)) {
+    
+    if (schema.items && _.isObject(schema.items)) {
       _.each(array, function(item, i) {
-        var errs = validate(schema.items, item, path + '[' + i + ']', options);
-        if (errs.length === 0) {
-          return;
+
+        // validate items
+
+        var errs = null;
+        if (_.isArray(schema.items)) {
+          // treat items as array of schema objects - array tuple validation
+          if (i < schema.items.length) {
+            errs = validate(schema.items[i], item, path + '[' + i + ']', options);
+            if (errs.length === 0) {
+              return;
+            }
+          }
         }
-        
-        if (schema.hasOwnProperty('additionalItems')
-            || !options.additionalItems) {
+        else {
+          // treat items as schema object
+          errs = validate(schema.items, item, path + '[' + i + ']', options);
+          if (errs.length === 0) {
+            return;
+          }
+        }
+
+        // validate additional items
+
+        if (schema.hasOwnProperty('additionalItems') || !options.additionalItems) {
           if (_.isObject(schema.additionalItems)) {
             // validate against additional items
             var addErrs = validate(schema.additionalItems, item, path + '[' + i + ']', options);
@@ -296,10 +326,6 @@ var validators = {
           }
         }
       });
-    }
-
-    if (schema.items && _.isArray(schema.items)) {
-      return []; // TODO: implement tuple typing
     }
 
     return errors;

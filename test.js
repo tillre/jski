@@ -175,6 +175,18 @@ describe('Validation of JSON schema', function() {
                          additionalItems: {type: 'boolean'}},
                         [false, 1, false, ''])).to.be.null;
       });
+      it('should validate a tuple array', function() {
+        expect(validate({type: 'array',
+                        items: [{type: 'number'}, {type: 'string'}, {type: 'boolean'}],
+                        additionalItems: false},
+                        [1, '', false])).to.be.null;
+      });
+      it('should not validate a invalid tuple array', function() {
+        expect(validate({type: 'array',
+                        items: [{type: 'number'}, {type: 'string'}, {type: 'boolean'}],
+                        additionalItems: false},
+                        [1, 2, true])).to.be.a('array');
+      });
     });
 
     describe('5.3.2. maxItems', function() {
