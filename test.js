@@ -392,18 +392,18 @@ describe('Validation of JSON schema', function() {
     describe('5.5.3. anyOf', function() {
       var schema = {anyOf: [
         {properties: {foo: {type: 'string'}}, additionalProperties: false},
-        {properties: {bar: {type: 'number'}}, additionalProperties: false},
-        {properties: {baz: {type: 'boolean'}}, additionalProperties: false}
+        {type: 'string'},
+        {type: 'array', items: {type: 'boolean'}, additionalItems: false}
       ]};
-      it('should conform to any schema', function() {
+      it('should be valid', function() {
         expect(validate(schema, {foo: ''})).to.be.null;
-        expect(validate(schema, {bar: 42})).to.be.null;
-        expect(validate(schema, {baz: true})).to.be.null;
+        expect(validate(schema, '')).to.be.null;
+        expect(validate(schema, [true, false])).to.be.null;
       });
-      it('should not validate when no conforming to any schema', function() {
+      it('should not be valid', function() {
         expect(validate(schema, {foo: 13})).to.not.be.null;
-        expect(validate(schema, {bar: ''})).to.not.be.null;
-        expect(validate(schema, {baz: null})).to.not.be.null;
+        expect(validate(schema, 11)).to.not.be.null;
+        expect(validate(schema, [1, 2])).to.not.be.null;
       });
     });
     describe('5.5.3. oneOf', function() {
@@ -494,6 +494,76 @@ describe('Validation of JSON schema', function() {
       expect(validate({type: 'string', format: 'url'},
                      'hello.world.com%asd', {validateFormat: true}
                      )).to.not.be.null;
+    });
+  });
+
+  describe('complex schema', function() {
+
+    var schema = {
+
+      title: 'Article',
+      description: 'Some type of article.',
+      
+      properties: {
+        'title': { type: 'string' },
+        'tags': { type: 'array', items: { type: 'string' }},
+        'image': { type: 'string', format: 'url' },
+        'sections': {
+          type: 'array',
+          items: { anyOf: [
+            { $ref: 'HeaderSection' },
+            { $ref: 'TextSection' },
+            { $ref: 'ImageSection' },
+            { $ref: 'VideoSection' },
+            { $ref: 'TagSection' }
+          ]},
+          additionalItems: false
+        }
+      },
+      required: ['title', 'image', 'sections'],
+      additionalProperties: false,
+
+      definitions: {
+        HeaderSection: { properties: {
+          headline: { type: 'string' },
+          subheadline: { type: 'string' }
+        }},
+        TextSection: {
+          type: 'string'
+        },
+        ImageSection: { properties: {
+          caption: { type: 'string' },
+          url: { type: 'string', format: 'url' }
+        }},
+        VideoSection: { properties: {
+          caption: { type: 'string' },
+          embedCode: { type: 'string' }
+        }},
+        TagSection: {
+          type: 'array', items: { type: 'string' }
+        }
+      }
+    };
+
+    var data = {
+      title: 'Talk about foo',
+      tags: ['a', 'b', 'c'],
+      image: 'http://www.foo.com/bar.png',
+      sections: [
+        { headline: 'There you go', subheadline: 'Again' },
+        'The text is the text is the text',
+        { caption: 'balu', url: 'http://djungle.id/balu.jpg' },
+        { caption: 'mogli', url: 'http://djungle.id/mogli.gif' },
+        ['uh', 'oh', 'ah']
+      ]
+    };
+
+    it('should validate', function() {
+      expect(validate(schema, data)).to.not.exist;
+    });
+    it('should not validate', function() {
+      data.sections.push(42);
+      expect(validate(schema, data)).to.be.a('array');
     });
   });
 

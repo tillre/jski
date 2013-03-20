@@ -15,7 +15,8 @@ var messages = {
   'notOneOf': 'Value validated against multiples schemas',
   'enum': 'Value is not an enum type <%=value%>.',
   'enumNoArray': 'Schema enum property is not an array.',
-
+  'empty': 'Empty schema',
+  
   // string
   'pattern': 'String does not match pattern <%=pattern%>.',
   'format': 'Value is not a valid <%=format%>',
@@ -381,7 +382,11 @@ var validators = {
     _.each(schema.anyOf, function(schema) {
       var localErrors = validate(schema, value, path, options);
       valid = localErrors.length === 0 ? true : valid;
+      if (value === 42) {
+        console.log('validate', schema, value, valid);
+      }
     });
+    console.log('anyOf', value, path, valid);
     if (!valid) {
       return addError([], schema, value, path, options, 'anyOf');
     }
@@ -480,6 +485,9 @@ function validate(schema, value, path, options) {
     else {
       addErrors(errors, validate(subSchema, value, path, options));
     }
+  }
+  else {
+    addError(errors, schema, value, path, options, 'empty');
   }
   return errors;
 }
