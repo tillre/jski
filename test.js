@@ -1,15 +1,25 @@
 /*global describe it*/
 
 var expect = require('chai').expect;
-var validate = require('./index.js');
+var validate = require('./lib-cov/index.js');
 
 describe('Validation of JSON schema', function() {
 
-  it('should validate empty schema with any object', function() {
+  it('should validate when no schema is passen', function() {
     expect(validate(null, {foo: 'bar'})).to.be.null;
+  });
+  
+  it('should validate empty schema object', function() {
     expect(validate({}, {foo: 'bar'})).to.be.null;
   });
 
+  it('should not validate when having empty child schema', function() {
+    expect(validate(
+      {properties: {foo: {type: 'string'}, bar: {}}},
+      {foo: '', bar: 11}
+    )).to.not.be.null;
+  });
+  
   it('should not be valid when it has errors', function() {
     expect(validate({type: 'string'}, 42)).to.not.be.null;
     expect(validate({type: 'string'}, 42)).to.be.a('array');
@@ -77,7 +87,18 @@ describe('Validation of JSON schema', function() {
           'one': { $ref: 'foo' },
           'two': { $ref: 'bar' }
         }
-      }, {one: '', two: { baz: true }})).to.be.a('array');
+      }, {one: '', two: { baz: true }})).to.not.be.null;
+    });
+    it('should not validate when not finding subschema', function() {
+      expect(validate({
+        definitions: {
+          'foo': { type: 'string' },
+        },
+        properties: {
+          'one': { $ref: 'foo' },
+          'two': { $ref: 'bar' }
+        }
+      }, {one: '', two: { baz: 42 }})).to.not.be.null;
     });
   });
   
@@ -194,6 +215,12 @@ describe('Validation of JSON schema', function() {
                          items: {type: 'number'},
                          additionalItems: {type: 'boolean'}},
                         [1, false, 2])).to.be.null;
+      });
+      it('should not validate when not valid against additional item', function() {
+        expect(validate({type: 'array',
+                        items: {type: 'number'},
+                        additionalItems: {type: 'boolean'}},
+                        [1, false, ''])).to.be.a('array');
       });
       it('should validate a array with a additional item', function() {
         expect(validate({type: 'array',
@@ -350,6 +377,9 @@ describe('Validation of JSON schema', function() {
         expect(validate({type: 'number', 'enum': [1, 2]}, 3)).to.not.be.null;
         expect(validate({type: 'number', 'enum': [{foo: 1}, {bar: 2}]}, {foo: 2})).to.not.be.null;
       });
+      it('should not validate when enum schema is no array', function() {
+        expect(validate({type: 'string', 'enum': 11}, '11')).to.not.be.null;
+      });
     });
     describe('5.5.2. type', function() {
       it('should validate standard types', function() {
@@ -372,9 +402,15 @@ describe('Validation of JSON schema', function() {
         expect(validate({type: 'array'}, {})).to.not.be.null;
         expect(validate({type: 'null'}, false)).to.not.be.null;
       });
+      it('should not validate unknown type', function() {
+        expect(validate({type: 'foo'}, 11)).to.not.be.null;
+      });
       it('should validate union types', function() {
         expect(validate({type: ['string', 'number']}, '')).to.be.null;
         expect(validate({type: ['string', 'number']}, 42)).to.be.null;
+      });
+      it('should not validate unkown union type', function() {
+        expect(validate({type: ['number', 'foo']}, true)).to.not.be.null;
       });
     });
     describe('5.5.3. allOf', function() {
@@ -493,6 +529,11 @@ describe('Validation of JSON schema', function() {
       // non standard
       expect(validate({type: 'string', format: 'url'},
                      'hello.world.com%asd', {validateFormat: true}
+                     )).to.not.be.null;
+    });
+    it('should not validate when format is unkown', function() {
+      expect(validate({type: 'string', format: 'foo'},
+                      'bar', {validateFormat: true}
                      )).to.not.be.null;
     });
   });

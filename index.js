@@ -382,11 +382,7 @@ var validators = {
     _.each(schema.anyOf, function(schema) {
       var localErrors = validate(schema, value, path, options);
       valid = localErrors.length === 0 ? true : valid;
-      if (value === 42) {
-        console.log('validate', schema, value, valid);
-      }
     });
-    console.log('anyOf', value, path, valid);
     if (!valid) {
       return addError([], schema, value, path, options, 'anyOf');
     }
@@ -446,10 +442,6 @@ var validators = {
 
 
 function validate(schema, value, path, options) {
-  if (!schema) {
-    return [];
-  }
-
   // infer type
   if (!schema.type) {
     if (schema.properties) {
@@ -495,7 +487,10 @@ function validate(schema, value, path, options) {
 
 // expose validate
 module.exports = function(schema, data, options) {
-  schema = schema || {};
+  // empty schema is valid
+  if (_.isEmpty(schema)) {
+    return null;
+  }
   
   var errors = [],
       defaultOptions = {
