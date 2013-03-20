@@ -76,9 +76,9 @@ var formats = {
 
 
 function addError(errors, schema, value, path, options, msgId) {
-  var ctx = _.extend({}, schema, {value: value}),
-      msg = _.template(messages[msgId], ctx),
-      err = { path: path, message: msg };
+  var ctx = _.extend({}, schema, {value: value});
+  var msg = _.template(messages[msgId], ctx);
+  var err = { path: path, message: msg };
 
   if (options.onError) {
     options.onError(err, schema, value, path);
@@ -358,8 +358,8 @@ var validators = {
       return addError([], schema, value, path, options, 'enumNoArray');
     }
     // compare enum values on string basis
-    var vstr = JSON.stringify(value),
-        strs = _.map(schema.enum, JSON.stringify);
+    var vstr = JSON.stringify(value);
+    var strs = _.map(schema.enum, JSON.stringify);
     
     if (strs.indexOf(vstr) === -1) {
       return addError([], schema, value, path, options, 'enum');
@@ -492,21 +492,21 @@ module.exports = function(schema, data, options) {
     return null;
   }
   
-  var errors = [],
-      defaultOptions = {
-        // always validate formats
-        validateFormat: false,
-        // allow/disallow additional properties when not specified otherwise
-        additionalProperties: true,
-        // allow/disallow additional items when not specified otherwise
-        additionalItems: true,
-        // array of property names to be omitted during validation
-        omitProperties: null,
-        // called on each error
-        onError: null,
-        // subschema definitions
-        definitions: {}
-      };
+  var errors = [];
+  var defaultOptions = {
+    // always validate formats
+    validateFormat: false,
+    // allow/disallow additional properties when not specified otherwise
+    additionalProperties: true,
+    // allow/disallow additional items when not specified otherwise
+    additionalItems: true,
+    // array of property names to be omitted during validation
+    omitProperties: null,
+    // called on each error
+    onError: null,
+    // subschema definitions
+    definitions: {}
+  };
 
   _.extend(defaultOptions, options);
   // deviate from the spec and just lookup $ref value directly in the definitions

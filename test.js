@@ -1,7 +1,7 @@
 /*global describe it*/
 
 var expect = require('chai').expect;
-var validate = require('./lib-cov/index.js');
+var validate = require('./index.js');
 
 describe('Validation of JSON schema', function() {
 
