@@ -5,47 +5,47 @@ var validate = require('./index.js');
 
 describe('Validation of JSON schema', function() {
 
-  it('should validate when no schema is passen', function() {
+  it('should validate when schema is null', function() {
     expect(validate(null, {foo: 'bar'})).to.be.null;
   });
   
-  it('should validate empty schema object', function() {
+  it('should validate when schema is empty object', function() {
     expect(validate({}, {foo: 'bar'})).to.be.null;
   });
 
-  it('should not validate when having empty child schema', function() {
+  it('should not validate with empty child schema', function() {
     expect(validate(
       {properties: {foo: {type: 'string'}, bar: {}}},
       {foo: '', bar: 11}
     )).to.not.be.null;
   });
   
-  it('should not be valid when it has errors', function() {
+  it('should return errors when validation fails', function() {
     expect(validate({type: 'string'}, 42)).to.not.be.null;
     expect(validate({type: 'string'}, 42)).to.be.a('array');
     expect(validate({type: 'string'}, 42).length).to.be.at.least(1);
   });
 
-  describe('validate method options', function() {
-    it('should respect the validateFormat option', function() {
+  describe('options', function() {
+    it('should respect validateFormat', function() {
       var schema = {type: 'string', format: 'email'},
           value = 'bess@gggg@hhh.com';
       expect(validate(schema, value)).to.be.null;
       expect(validate(schema, value, {validateFormat: true}).valid).to.not.be.null;
     });
-    it('should respect the additionalProperties option', function() {
+    it('should respect additionalProperties', function() {
       var schema = {properties: {foo: {type: 'number'}}},
           value = {foo: 42, bar: ''};
       expect(validate(schema, value)).to.be.null;
       expect(validate(schema, value, {additionalProperties: false})).to.not.be.null;
     });
-    it('should respect the additionalItems option', function() {
+    it('should respect additionalItems', function() {
       var schema = {items: {type: 'string'}},
           value = ['', 2, 3];
       expect(validate(schema, value)).to.be.null;
       expect(validate(schema, value, {additionalItems: false})).to.not.be.null;
     });
-    it('should omit properties while validating', function() {
+    it('should respect omitProperties', function() {
       var schema = {properties: {foo: {type: 'string'}}},
           value = {foo: '', bar: 11};
       expect(validate(schema, value)).to.be.null;
@@ -53,7 +53,7 @@ describe('Validation of JSON schema', function() {
       expect(validate(schema, value, {omitProperties: ['bar'], additionalItems: false}
                      )).to.be.null;
     });
-    it('should call the onError callback on each error', function() {
+    it('should call onError', function() {
       var cb = function(err, schema, value, path) {
     	err.hello = true;
       };
@@ -104,16 +104,16 @@ describe('Validation of JSON schema', function() {
   
   describe('5.1. number and integer', function() {
     describe('5.1.1. multipleOf', function() {
-      it('should be a multiple of the value', function() {
+      it('should be a multiple of', function() {
         expect(validate({type: 'number', multipleOf: '3'}, 9)).to.be.null;
       });
-      it('should not validate when not a multiple of the value', function() {
+      it('should not validate when not a multiple of', function() {
         expect(validate({type: 'number', multipleOf: '3'}, 5)).to.be.not.null;
       });
     });
 
     describe('5.1.2. maximum and exclusiveMaximum', function() {
-      it('should not be greater then the maximum', function() {
+      it('should not be greater than the maximum', function() {
         expect(validate({type: 'number', maximum: 3}, 3.0)).to.be.null;
         expect(validate({type: 'number', maximum: 3}, 2.5)).to.be.null;
         expect(validate({type: 'integer', maximum: 3}, 3)).to.be.null;
