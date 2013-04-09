@@ -15,7 +15,7 @@ var messages = {
   'notOneOf': 'Value validated against multiples schemas',
   'enum': 'Value is not an enum type <%=value%>.',
   'enumNoArray': 'Schema enum property is not an array.',
-  'empty': 'Empty schema',
+  'unknownSchema': 'Unknown schema',
   
   // string
   'pattern': 'String does not match pattern <%=pattern%>.',
@@ -96,6 +96,15 @@ function addErrors(errors, newErrors) {
 
 
 var validators = {
+
+  'boolean': function(schema, bool, path, options) {
+    if (!_.isBoolean(bool)) {
+      return addError([], schema, bool, path, options, 'type');
+    }
+    return [];
+  },
+
+  
   'string': function(schema, string, path, options) {
     var errors = [];
     if (!_.isString(string)) {
@@ -163,14 +172,6 @@ var validators = {
   },
 
   
-  'boolean': function(schema, bool, path, options) {
-    if (!_.isBoolean(bool)) {
-      return addError([], schema, bool, path, options, 'type');
-    }
-    return [];
-  },
-
-  
   'object': function(schema, object, path, options) {
     var errors = [];
     if (!_.isObject(object) || _.isArray(object)) {
@@ -191,7 +192,8 @@ var validators = {
     if (schema.dependencies) {
       _.each(schema.dependencies, function(dependency, key) {
         if (!object.hasOwnProperty(key)) {
-          addError(errors, schema, object, path + '.' + key, options, 'dependencyNoProp');
+          addError(errors, schema, object, path + '.' + key, 
+                   options, 'dependencyNoProp');
         }
         if (_.isArray(dependency)) {
           // validate property name array dependency
@@ -405,7 +407,7 @@ var validators = {
     return [];
   },
 
-  
+
   'type': function(schema, value, path, options) {
     var errors = [];
     if (_.isArray(schema.type)) {
@@ -437,11 +439,29 @@ var validators = {
       }
     }
     return errors;
+  },
+
+  
+  '$ref': function(schema, value, path, options) {
+    var errors = [];
+    var subSchema = options.definitions[schema.$ref];
+    if (!subSchema) {
+      addError(errors, schema, value, path, options, '$ref');
+    }
+    else {
+      addErrors(errors, validate(subSchema, value, path, options));
+    }
+    return errors;
+  },
+
+
+  'unkown': function(schema, value, path, options) {
+    return addError([], schema, value, path, options, 'unknownSchema');
   }
 };
 
 
-function validate(schema, value, path, options) {
+function iterateSchema(schema, handlers, args) {
   // infer type
   if (!schema.type) {
     if (schema.properties) {
@@ -452,36 +472,32 @@ function validate(schema, value, path, options) {
     }
   }
 
-  var errors = [];
-
   if (schema.enum) {
-    addErrors(errors, validators.enum(schema, value, path, options));
+    return handlers['enum'].apply(null, args);
   }
   else if (schema.oneOf) {
-    addErrors(errors, validators.oneOf(schema, value, path, options));
+    return handlers['oneOf'].apply(null, args);
   }
   else if (schema.allOf) {
-    addErrors(errors, validators.allOf(schema, value, path, options));
+    return handlers['allOf'].apply(null, args);
   }
   else if (schema.anyOf) {
-    addErrors(errors, validators.anyOf(schema, value, path, options));
+    return handlers['anyOf'].apply(null, args);
   }
   else if (schema.type) {
-    addErrors(errors, validators.type(schema, value, path, options));
+    return handlers['type'].apply(null, args);
   }
   else if (schema.$ref) {
-    var subSchema = options.definitions[schema.$ref];
-    if (!subSchema) {
-      addError(errors, schema, value, path, options, '$ref');
-    }
-    else {
-      addErrors(errors, validate(subSchema, value, path, options));
-    }
+    return handlers['$ref'].apply(null, args);
   }
-  else {
-    addError(errors, schema, value, path, options, 'empty');
-  }
-  return errors;
+  
+  return handlers['unkown'].apply(null, args);
+}
+
+
+function validate(schema, value, path, options) {
+  var args = Array.prototype.slice.call(arguments);
+  return addErrors([], iterateSchema(schema, validators, args));
 }
 
 
