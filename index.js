@@ -461,7 +461,9 @@ var validators = {
 };
 
 
-function iterateSchema(schema, handlers, args) {
+function iterateSchema(handlers, args) {
+  var schema = args[0];
+  
   // infer type
   if (!schema.type) {
     if (schema.properties) {
@@ -497,7 +499,7 @@ function iterateSchema(schema, handlers, args) {
 
 function validate(schema, value, path, options) {
   var args = Array.prototype.slice.call(arguments);
-  return addErrors([], iterateSchema(schema, validators, args));
+  return addErrors([], iterateSchema(validators, args));
 }
 
 
