@@ -5,6 +5,7 @@
 var _ = require('underscore');
 
 
+
 var messages = {
   'type': 'Value is not of type <%=type%>.',
   'unknownType': 'Type is not known <%=type%>.',
@@ -553,7 +554,6 @@ module.exports = function(schema, data, options) {
     return null;
   }
   
-  var errors = [];
   var defaultOptions = {
     // always validate formats
     validateFormat: false,
@@ -568,12 +568,9 @@ module.exports = function(schema, data, options) {
     // subschema definitions
     definitions: {}
   };
-
   _.extend(defaultOptions, options);
-  // deviate from the spec and just lookup $ref values directly in the definitions
-  _.extend(defaultOptions.definitions, schema.definitions);
   
-  errors = validate(schema, data, '', defaultOptions);
+  var errors = validate(schema, data, '', defaultOptions);
 
   return errors.length > 0 ? errors : null;
 };
