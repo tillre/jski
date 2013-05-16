@@ -6,7 +6,7 @@ var validate = require('./index.js');
 
 
 describe('Validation of JSON schema', function() {
-
+  
   it('should validate when schema is null', function() {
     var errs = validate(null, {foo: 'bar'});
     assert(!errs);

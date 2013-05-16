@@ -50,6 +50,7 @@ var messages = {
 };
 
 
+
 var formats = {
   // originally taken from https://github.com/flatiron/revalidator/
   'email': /^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$/i,
@@ -76,6 +77,7 @@ var formats = {
 };
 
 
+
 function addError(errors, schema, value, path, options, msgId) {
   var ctx = _.extend({}, schema, {value: value});
   var msg = _.template(messages[msgId], ctx);
@@ -96,8 +98,13 @@ function addErrors(errors, newErrors) {
 }
 
 
+
 var validators = {
 
+  //
+  // Boolean
+  //
+  
   'boolean': function(schema, bool, path, options) {
     if (!_.isBoolean(bool)) {
       return addError([], schema, bool, path, options, 'type');
@@ -105,6 +112,10 @@ var validators = {
     return [];
   },
 
+  
+  //
+  // String
+  //
   
   'string': function(schema, string, path, options) {
 
@@ -137,6 +148,10 @@ var validators = {
     return errors;
   },
 
+  
+  //
+  // Number
+  //
   
   'number': function(schema, number, path, options) {
 
@@ -171,6 +186,10 @@ var validators = {
   },
 
   
+  //
+  // Integer
+  //
+  
   'integer': function(schema, integer, path, options) {
 
     var errors = [];
@@ -188,6 +207,10 @@ var validators = {
     return errors;
   },
 
+  
+  //
+  // Object
+  //
   
   'object': function(schema, object, path, options) {
 
@@ -284,6 +307,10 @@ var validators = {
   },
 
   
+  //
+  // Array
+  //
+  
   'array': function(schema, array, path, options) {
 
     var errors = [];
@@ -363,6 +390,10 @@ var validators = {
   },
 
   
+  //
+  // Null
+  //
+  
   'null': function(schema, value, path, options) {
     if (value !== null) {
       return addError([], schema, value, path, options, 'type');
@@ -371,10 +402,18 @@ var validators = {
   },
 
   
+  //
+  // Any
+  //
+  
   'any': function(schema, value, path, options) {
     return [];
   },
 
+  
+  //
+  // Enum
+  //
 
   'enum': function(schema, value, path, options) {
 
@@ -392,7 +431,11 @@ var validators = {
     }
     return [];
   },
+
   
+  //
+  // AllOf
+  //
   
   'allOf': function(schema, value, path, options) {
 
@@ -406,6 +449,10 @@ var validators = {
   },
 
 
+  //
+  // AnyOf
+  //
+  
   'anyOf': function(schema, value, path, options) {
 
     var valid = false;
@@ -422,6 +469,10 @@ var validators = {
     return [];
   },
 
+  
+  //
+  // OneOf
+  //
   
   'oneOf': function(schema, value, path, options) {
 
@@ -442,6 +493,10 @@ var validators = {
     return [];
   },
 
+
+  //
+  // Type
+  //
 
   'type': function(schema, value, path, options) {
 
@@ -482,6 +537,10 @@ var validators = {
     return errors;
   },
 
+
+  //
+  // $Ref
+  //
   
   '$ref': function(schema, value, path, options) {
 
@@ -498,56 +557,39 @@ var validators = {
   },
 
 
+  //
+  // Unkown
+  //
+
   'unkown': function(schema, value, path, options) {
     return addError([], schema, value, path, options, 'unknownSchema');
   }
 };
 
 
-function iterateSchema(handlers, args) {
-
-  var schema = args[0];
-  
-  // infer type
-  if (!schema.type) {
-    if (schema.properties) {
-      schema.type = 'object';
-    }
-    else if (schema.items) {
-      schema.type = 'array';
-    }
-  }
-
-  if (schema.enum) {
-    return handlers['enum'].apply(null, args);
-  }
-  else if (schema.oneOf) {
-    return handlers['oneOf'].apply(null, args);
-  }
-  else if (schema.allOf) {
-    return handlers['allOf'].apply(null, args);
-  }
-  else if (schema.anyOf) {
-    return handlers['anyOf'].apply(null, args);
-  }
-  else if (schema.type) {
-    return handlers['type'].apply(null, args);
-  }
-  else if (schema.$ref) {
-    return handlers['$ref'].apply(null, args);
-  }
-  else return handlers['unkown'].apply(null, args);
-}
-
-
 function validate(schema, value, path, options) {
-  var args = Array.prototype.slice.call(arguments);
-  return addErrors([], iterateSchema(validators, args));
+
+  var handler = 'unkown';
+
+  // infer object or array type
+  if (!schema.type) {
+    if (schema.properties) schema.type = 'object';
+    if (schema.items) schema.type = 'array';
+  }
+  
+  if (schema.type)  handler = 'type';
+  if (schema.enum)  handler = 'enum';
+  if (schema.oneOf) handler = 'oneOf';
+  if (schema.allOf) handler = 'allOf';
+  if (schema.anyOf) handler = 'anyOf';
+  if (schema.$ref)  handler = '$ref';
+  
+  return validators[handler](schema, value, path, options);
 }
 
 
 // expose validate
-module.exports = function(schema, data, options) {
+module.exports = function(schema, value, options) {
 
   // empty schema is valid
   if (_.isEmpty(schema)) {
@@ -570,7 +612,7 @@ module.exports = function(schema, data, options) {
   };
   _.extend(defaultOptions, options);
   
-  var errors = validate(schema, data, '', defaultOptions);
+  var errors = validate(schema, value, '', defaultOptions);
 
   return errors.length > 0 ? errors : null;
 };
