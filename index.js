@@ -1,55 +1,875 @@
-//
-// jski - json schema validation
-//
-
-var _ = require('underscore');
 
 
+function isArray(obj) {
+  if (Array.isArray) return Array.isArray(obj);
+  return toString.call(obj) == '[object Array]';
+}
 
-var messages = {
-  'type': 'Value is not of type <%=type%>.',
-  'unknownType': 'Type is not known <%=type%>.',
-  'unionTypeNotValid': 'Failed to validate union types.',
-  'allOf': 'Value failed to validate against all of the schemas',
-  'anyOf': 'Value failed to validate against any of the schemas',
-  'oneOf': 'Value failed to validate against at least one of the schemas',
-  'notOneOf': 'Value validated against multiples schemas',
-  'enum': 'Value is not an enum type <%=value%>.',
-  'enumNoArray': 'Schema enum property is not an array.',
-  'unknownSchema': 'Unknown schema',
+
+function isObject(obj) {
+  return obj === Object(obj);
+}
+
+
+function extend(a, b) {
+  for (var n in b) {
+    a[n] = b[n];
+  }
+  return a;
+}
+
+
+function inherit(a, b) {
+  extend(a.prototype, b.prototype);
+}
+
+
+function makeError(message, path) {
+  var err = new Error(message);
+  err.path = path;
+  return err;
+}
+
+
+function addError(errors, message, path) {
+  errors.push(makeError(message, path));
+  return errors;
+}
+
+
+function addErrors(errors, newErrors) {
+
+  newErrors.forEach(function(err) {
+    errors.push(err);
+  });
+  return errors;
+}
+
+
+function fromJSON(schema) {
+
+  var validator;
   
-  // string
-  'pattern': 'String does not match pattern <%=pattern%>.',
-  'format': 'Value is not a valid <%=format%>',
-  'unknownFormat': 'Format <%=format%> is unkown',
-  'minLength': 'String has to be at least <%=minLength%> characters long.',
-  'maxLength': 'String should not be longer than <%=maxLength%> characters.',
+  if (schema.type || schema.properties || schema.items) {
 
-  // number
-  'minimum': 'Number is less than minimum <%=minimum%>.',
-  'maximum': 'Number is greater than maximum <%=maximum%>.',
-  'exclusiveMinimum': 'Number is less than or equal to exclusive minimum <%=exclusiveMinimum%>.',
-  'exclusiveMaximum': 'Number is greater than or equal to exclusive maximum <%=exclusiveMaximum%>.',
-  'multipleOf': 'Number should be a multiple of <%=multipleOf%>',
+    var type = schema.type;
+    // infer 'array' and 'object' type
+    if (schema.properties) type = 'object';
+    if (schema.items) type = 'array';
+    
+    validator = new ({
+      'boolean': BooleanValidator,
+      'number': NumberValidator,
+      'integer': IntegerValidator,
+      'string': StringValidator,
+      'any': AnyValidator,
+      'null': NullValidator,
+      'array': ArrayValidator,
+      'object': ObjectValidator
+    })[type]();
+  }
+  else if (schema.enum) {
+    validator = new EnumValidator();
+  }
+  else if (schema.allOf) {
+    validator = new AllOfValidator();
+  }
+  else if (schema.anyOf) {
+    validator = new AnyOfValidator();
+  }
+  else if (schema.oneOf) {
+    validator = new OneOfValidator();
+  }
+  else if (schema.$ref) {
+    validator = new RefValidator();
+  }
 
-  // object
-  'minProperties': 'Object should have at least <%=minProperties%> properties.',
-  'maxProperties': 'Object should have not more than <%=maxProperties%> properties.',
-  'dependency': 'Property does not meet dependency.',
-  'dependencyNoProp': 'Property of dependency does not exist.',
-  'required': 'Required property does not exist.',
-  'additionalProperties': 'Additional property is not allowed.',
+  if (!validator) {
+    console.log('unkown schema', schema, new Error().stack);
+    throw new Error('Unkown schema');
+  }
+  
+  return validator.fromJSON(schema);
+}
 
-  // array
-  'minItems': 'Array should have at least <%=minItems%> items.',
-  'maxItems': 'Array should not have more than <%=maxItems%> items.',
-  'uniqueItems': 'Array is not unique.',
 
-  // subschema
-  '$ref': 'Subschema not found'
+//
+// Validator
+//
+
+function Validator(type) {
+
+  this.type = type;
+  this.options = {};
+  this.constraints = [];
+
+  // meta keywords
+  this.addOption('title', '');
+  this.addOption('description', '');
+  this.addOption('default');
+}
+
+
+Validator.prototype.toJSON = function() {
+
+  var schema = { type: this.type };
+  var self = this;
+
+  Object.keys(this.options).forEach(function(key) {
+    if (self.options[key].enabled) {
+      schema[key] = self.options[key].value;
+    }
+  });
+
+  this.constraints.forEach(function(constraint) {
+    if (constraint.enabled) {
+      schema[constraint.name] = constraint.toJSON ? constraint.toJSON() : constraint.value;
+    }
+  });
+
+  return schema;
 };
 
 
+Validator.prototype.fromJSON = function(schema) {
+
+  var self = this;
+  
+  Object.keys(this.options).forEach(function(key) {
+    if (schema.hasOwnProperty(key)) {
+      self.options[key] = {
+        enabled: true,
+        value: schema[key]
+      };
+    }
+  });
+
+  this.constraints.forEach(function(constraint) {
+    var s = schema[constraint.name];
+    if (s) {
+      self[constraint.name](constraint.fromJSON(s));
+    }
+  });
+
+  return this;
+};
+
+
+Validator.prototype.addOption = function(name, defaultValue) {
+
+  this.options[name] = {
+    enabled: false,
+    value: defaultValue
+  };
+
+  this[name] = function(value) {
+    this.options[name] = {
+      enabled: true,
+      value: value
+    };
+    return this;
+  };
+};
+
+
+Validator.prototype.addConstraint = function(name, validate, toJSON, fromJSON) {
+
+  var self = this;
+  
+  var constraint = {
+    name: name,
+    value: null,
+    enabled: false,
+
+    validate: function(value, options, path) {
+      path = path || '';
+      return validate.call(self, value, this.value, options, path);
+    },
+    toJSON: function() {
+      return toJSON ? toJSON(this.value) : this.value;
+    },
+    fromJSON: function(schema) {
+      return fromJSON ? fromJSON(schema) : schema;
+    }
+  };
+
+  this[name] = function(value) {
+    constraint.value = value;
+    constraint.enabled = true;
+    return this;
+  };
+
+  this.constraints.push(constraint);
+};
+
+
+Validator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+
+  this.constraints.forEach(function(constraint) {
+    if (constraint.enabled) {
+      addErrors(errors, constraint.validate(value, options, path));
+    }
+  });
+  return errors;
+};
+
+
+//
+// Boolean Validator
+//
+
+function BooleanValidator() {
+
+  Validator.call(this, 'boolean');
+}
+
+
+inherit(BooleanValidator, Validator);
+
+
+BooleanValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+
+  if (!(typeof value === 'boolean')) {
+    addError(errors, 'Value is not a boolean', path);
+  }
+  return errors;
+};
+
+
+//
+// Number Validator
+//
+
+function NumberValidator() {
+
+  Validator.call(this, 'number');
+
+  this.addConstraint(
+    'multipleOf',
+    function(value, n, options, path) {
+      return value % n === 0 ? [] : [
+        makeError('Value is not a multiple of: ' + n, path)
+      ];
+    }
+  );
+  
+  this.addConstraint(
+    'maximum',
+    function(value, n, options, path) {
+      return value <= n ? [] : [
+        makeError('Value is greater than the maximum: ' + n, path)
+      ];
+    }
+  );
+  
+  this.addConstraint(
+    'minimum',
+    function(value, n, options, path) {
+      return value >= n ? [] : [
+        makeError('Value is less than minimum: ' + n, path)
+      ];
+    }
+  );
+}
+
+
+inherit(NumberValidator, Validator);
+
+
+NumberValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+  
+  if (!(typeof value === 'number')) {
+    addError(errors, 'Value is not a number', path);
+  }
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// Integer Validator
+//
+
+function IntegerValidator() {
+
+  NumberValidator.call(this, arguments);
+  this.type = 'integer';
+}
+
+
+inherit(IntegerValidator, NumberValidator);
+
+
+IntegerValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+
+  if (!(typeof value === 'number') || Math.floor(value) !== value) {
+    addError(errors, 'Value is not a integer', path);
+  }
+  return addErrors(errors, NumberValidator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// StringValidator
+//
+
+function StringValidator() {
+
+  Validator.call(this, 'string');
+
+  this.addConstraint(
+    'maxLength',
+    function(value, n, options, path) {
+      return value.length <= n ? [] : [
+        makeError('Value is less than minimum: ' + n, path)
+      ];
+    }
+  );
+
+  this.addConstraint(
+    'minLength',
+    function(value, n, options, path) {
+      return value.length >= n ? [] : [
+        makeError('Value is less than minimum: ' + n, path)
+      ];
+    }
+  );
+
+  this.addConstraint(
+    'pattern',
+    function(value, p, options, path) {
+      return new RegExp(p).test(value) ? [] : [
+        makeError('Value does not match pattern: ' + p, path)
+      ];
+    }
+  );
+
+  this.addConstraint(
+    'format',
+    function(value, f, options, path) {
+      if (!formats[f]) {
+        return [makeError('Unkown format: ' + f, path)];
+      }
+      if (!formats[f].test(value)) {
+        return [makeError('Value does not match format: ' + f, path)];
+      }
+      return [];
+    }
+  );
+}
+
+
+inherit(StringValidator, Validator);
+
+
+StringValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+  
+  if (!(typeof value === 'string')) {
+    return addError(errors, 'Value is not a string', path);
+  }
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// Array Validator
+//
+
+function ArrayValidator(items) {
+
+  Validator.call(this, 'array');
+  
+  this.addOption('additionalItems', true);
+  
+  this.addConstraint(
+    'maxItems',
+    function(value, m, options, path) {
+      return value.length <= m ? [] : [
+        makeError('Number of items is larger than maximum: ' + m, path)
+      ];
+    }
+  );
+  
+  this.addConstraint(
+    'minItems',
+    function(value, m, options, path) {
+      return value.length >= m ? [] : [
+        makeError('Number of items is less than minimum: ' + m, path)
+      ];
+    }
+  );
+  
+  this.addConstraint(
+    'uniqueItems',
+    function(value, u, options, path) {
+      if (!u) return [];
+
+      var errors = [];
+      var cache = {};
+
+      for (var i = 0; i < value.length; ++i) {
+        var str = JSON.stringify(value[i]);
+        if (cache[str]) {
+          addError(errors, 'Array items are not unique', path);
+          break;
+        }
+        cache[str] = true;
+      };
+      return errors;
+    }
+  );
+  
+  this.addConstraint(
+    'items',
+    function(values, items, options, path) {
+
+      var errors = [];
+      var self = this;
+
+      if (isArray(items)) {
+
+        // array tuple
+
+        values.forEach(function(value, i) {
+          if (i < items.length) {
+            addErrors(errors, items[i].validate(value, options, path + '[' + i + ']'));
+          }
+          else  if (!self.options.additionalItems.value){
+            addError(errors, 'Array index outside tuple length: ' + i, path + '[' + i + ']');
+          }
+        });
+      }
+      else if (isObject(items) && !this.options.additionalItems.value) {
+
+        // array
+        
+        values.forEach(function(value, i) {
+          addErrors(errors, items.validate(value, options, path + '[' + i + ']'));
+        });
+      }
+
+      return errors;
+    },
+    
+    function(items) {
+      if (isArray(items)) {
+        return items.map(function(item) {
+          return item.toJSON();
+        });
+      }
+      else {
+        return items.toJSON();
+      }
+    },
+
+    function(schema) {
+      if (isArray(schema)) {
+        return schema.map(function(item) {
+          return fromJSON(item);
+        });
+      }
+      else {
+        return fromJSON(schema);
+      }
+    }
+  );
+
+  // set items constraint
+  if (items) this.items(items);
+}
+
+
+inherit(ArrayValidator, Validator);
+
+
+ArrayValidator.prototype.validate = function(values, options, path) {
+
+  path = path || '';
+  var errors = [];
+  var self = this;
+  
+  if (!isArray(values)) {
+    return addError(errors, 'Value is not a array', path);
+  }
+  
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// Object Validator
+//
+
+function ObjectValidator(properties) {
+
+  Validator.call(this, 'object');
+  
+  this.addOption('additionalProperties', true);
+
+  this.addConstraint(
+    'maxProperties',
+    function(value, m, options, path) {
+      return Object.keys(value).length <= m ? [] : [
+        makeError('Number of properties is larger than maximum: ' + m, path)
+      ];
+    }
+  );
+  
+  this.addConstraint(
+    'minProperties',
+    function(value, m, options, path) {
+      return Object.keys(value).length >= m ? [] : [
+        makeError('Number of properties is less than minimum: ' + m, path)
+      ];
+    }
+  );
+  
+  this.addConstraint(
+    'required',
+    function(value, reqs, options, path) {
+      var errors = [];
+      var self = this;
+      
+      reqs.forEach(function(name) {
+        if (!value.hasOwnProperty(name)) {
+          addError(errors, 'Required property is missing: ' + name, path);
+        }
+      });
+      return errors;
+    }
+  );
+  
+  this.addConstraint(
+    'properties',
+
+    function(value, properties, options, path) {
+      var errors = [];
+      
+      for (var n in value) {
+        if (properties[n]) {
+          addErrors(errors, properties[n].validate(value[n], options, path + '.' + n));
+        }
+        else if (!this.options.additionalProperties.value) {
+          addError(errors, 'Object has no property with name: ' + n, path + '.' + n);
+        }
+      }
+      return errors;
+    },
+
+    function(properties) {
+      var schema = {};
+      Object.keys(properties).forEach(function(key) {
+        schema[key] = properties[key].toJSON();
+      });
+      return schema;
+    },
+
+    function(schema) {
+      properties = {};
+      Object.keys(schema).forEach(function(key) {
+        properties[key] = fromJSON(schema[key]);
+      });
+      return properties;
+    }
+  );
+
+  // shortcut to set constraint
+  if (properties) this.properties(properties);
+}
+
+
+inherit(ObjectValidator, Validator);
+
+
+ObjectValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+  
+  if (!isObject(value) || isArray(value)) {
+    addError(errors, 'Value is not an object', path);
+  }
+
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// Enum Validator
+//
+
+function EnumValidator(items) {
+
+  this.items = items || [];
+  Validator.call(this, 'enum');
+}
+
+
+inherit(EnumValidator, Validator);
+
+
+EnumValidator.prototype.toJSON = function() {
+  return { 'enum': this.items };
+};
+
+
+EnumValidator.prototype.fromJSON = function(schema) {
+  this.items = schema.enum;
+  return this;
+};
+
+
+EnumValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+  var valid = false;
+  
+  this.items.forEach(function(item) {
+    if (!valid) {
+      if (isObject(item) || isArray(item)) {
+        valid = JSON.stringify(item) === JSON.stringify(value);
+      }
+      else {
+        valid = item === value;
+      }
+    }
+  });
+
+  if (!valid) {
+    addError(errors, 'Not a valid enumeration item: ' + value, path);
+  }
+
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// Any Validator
+//
+
+function AnyValidator() {
+
+  Validator.call(this, 'any');
+}
+
+inherit(AnyValidator, Validator);
+
+AnyValidator.prototype.validate = function(value, options, path) {
+  return addErrors([], Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// Null Validator
+//
+
+function NullValidator() {
+
+  Validator.call(this, 'null');
+}
+
+inherit(NullValidator, Validator);
+
+NullValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+
+  if (typeof value !== 'object' || value !== null) {
+    addError(errors, 'Value is not null', path);
+  }
+  
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// AllOf Validator
+//
+
+function AllOfValidator(items) {
+
+  this.items = items;
+  Validator.call(this, 'allOf');
+}
+
+inherit(AllOfValidator, Validator);
+
+
+AllOfValidator.prototype.toJSON = function() {
+  var schema = {};
+  schema[this.type] = this.items.map(function(item) {
+    return item.toJSON();
+  });
+  return schema;
+};
+
+
+AllOfValidator.prototype.fromJSON = function(schema) {
+  this.items = schema[this.type].map(function(item) {
+    return fromJSON(item);
+  });
+  return this;
+};
+
+
+AllOfValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+
+  this.items.forEach(function(item) {
+    addErrors(errors, item.validate(value, options, path));
+  });
+
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// AnyOf Validator
+//
+
+function AnyOfValidator(items) {
+
+  AllOfValidator.call(this, items);
+  this.type = 'anyOf';
+}
+
+inherit(AnyOfValidator, AllOfValidator);
+
+
+AnyOfValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+  var valid = false;
+
+  this.items.forEach(function(item) {
+    valid = item.validate(value, options, path).length === 0 || valid;
+  });
+  if (!valid) {
+    addError(errors, 'Value does not match any of the schemas', path);
+  }
+
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// OneOf Validator
+//
+
+function OneOfValidator(items) {
+
+  AllOfValidator.call(this, items);
+  this.type = 'oneOf';
+}
+
+inherit(OneOfValidator, AllOfValidator);
+
+OneOfValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+  var valid = 0;
+
+  this.items.forEach(function(item) {
+    valid += (item.validate(value, options, path).length === 0) ? 1 : 0;
+  });
+  if (valid === 0) {
+    addError(errors, 'Value does not validate against one of the schemas');
+  }
+  if (valid > 1) {
+    addError(errors, 'Value does validate against more than one of the schemas');
+  }
+
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// Ref Validator
+//
+
+function RefValidator(refName) {
+
+  this.ref = refName;
+  Validator.call(this, '$ref');
+}
+
+inherit(RefValidator, Validator);
+
+
+RefValidator.prototype.toJSON = function() {
+  return { $ref: this.ref };
+};
+
+
+RefValidator.prototype.fromJSON = function(schema) {
+  this.ref = schema.$ref;
+  return this;
+};
+
+
+RefValidator.prototype.validate = function(value, options, path) {
+
+  path = path || '';
+  var errors = [];
+  
+  if (options && options.definitions && options.definitions[this.ref]) {
+    addErrors(errors, options.definitions[this.ref].validate(value, options, path));
+  }
+  else {
+    addError(errors, 'Definition of schema reference not found: ' + value, path);
+  }
+
+  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+};
+
+
+//
+// exports
+//
+
+module.exports = {
+    
+  boolean: function() { return new BooleanValidator(); },
+  number:  function() { return new NumberValidator(); },
+  integer: function() { return new IntegerValidator(); },
+  string:  function() { return new StringValidator(); },
+  any:     function() { return new AnyValidator(); },
+  null:    function() { return new NullValidator(); },
+  array:   function(items) { return new ArrayValidator(items); },
+  object:  function(properties) { return new ObjectValidator(properties); },
+  'enum':    function(items) { return new EnumValidator(items); },
+  allOf:   function(items) { return new AllOfValidator(items); },
+  anyOf:   function(items) { return new AnyOfValidator(items); },
+  oneOf:   function(items) { return new OneOfValidator(items); },
+  ref:     function(name) { return new RefValidator(name); },
+
+  schema: fromJSON
+};
+
+
+//
+// Format Regexps
+//
 
 var formats = {
   // originally taken from https://github.com/flatiron/revalidator/
@@ -63,7 +883,7 @@ var formats = {
   //'style': (not supported)
   //'phone': (not supported)
   //'uri': (not supported)
-  'host-name': /^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])/,
+  'host-name': /^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$/,
   'utc-millisec': /^\d+$/,
   'regex': {
     test: function (value) {
@@ -73,546 +893,7 @@ var formats = {
     }
   },
   // non standard
-  url: /^(http|ftp|https):\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&amp;:\/~+#-]*[\w@?^=%&amp;\/~+#-])?$/
+  url: /^(http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?$/,
+  slug: /^([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])*$/
 };
 
-
-
-function addError(errors, schema, value, path, options, msgId) {
-  var ctx = _.extend({}, schema, {value: value});
-  var msg = _.template(messages[msgId], ctx);
-  var err = { path: path, message: msg };
-
-  if (options.onError) {
-    options.onError(err, schema, value, path);
-  }
-
-  errors.push(err);
-  return errors;
-}
-
-
-function addErrors(errors, newErrors) {
-  _.each(newErrors, function(error) { errors.push(error); });
-  return errors;
-}
-
-
-
-var validators = {
-
-  //
-  // Boolean
-  //
-  
-  'boolean': function(schema, bool, path, options) {
-    if (!_.isBoolean(bool)) {
-      return addError([], schema, bool, path, options, 'type');
-    }
-    return [];
-  },
-
-  
-  //
-  // String
-  //
-  
-  'string': function(schema, string, path, options) {
-
-    var errors = [];
-
-    if (!_.isString(string)) {
-      return addError(errors, schema, string, path, options, 'type');
-    }
-
-    if (schema.pattern && !(new RegExp(schema.pattern)).test(string)) {
-      return addError(errors, schema, string, path, options, 'pattern');
-    }
-
-    if (schema.format && options.validateFormat) {
-      if (!formats[schema.format]) {
-        addError(errors, schema, string, path, options, 'unknownFormat');
-      }
-      else if (!formats[schema.format].test(string)) {
-        addError(errors, schema, string, path, options, 'format');
-      }
-    }
-
-    if (schema.hasOwnProperty('minLength') && string.length < schema.minLength) {
-      addError(errors, schema, string, path, options, 'minLength');
-    }
-
-    if (schema.hasOwnProperty('maxLength') && string.length > schema.maxLength) {
-      addError(errors, schema, string, path, options, 'maxLength');
-    }
-    return errors;
-  },
-
-  
-  //
-  // Number
-  //
-  
-  'number': function(schema, number, path, options) {
-
-    var errors = [];
-
-    if (!_.isNumber(number)) {
-      return addError(errors, schema, number, path, options, 'type');
-    }
-
-    if (schema.hasOwnProperty('minimum')) {
-      if (schema.exclusiveMinimum && number <= schema.minimum) {
-        addError(errors, schema, number, path, options, 'exclusiveMinimum');
-      }
-      else if (number < schema.minimum) {
-        addError(errors, schema, number, path, options, 'minimum');
-      }
-    }
-
-    if (schema.hasOwnProperty('maximum')) {
-      if (schema.exclusiveMaximum && number >= schema.maximum) {
-        addError(errors, schema, number, path, options, 'exclusiveMaximum');
-      }
-      else if (number > schema.maximum) {
-        addError(errors, schema, number, path, options, 'maximum');
-      }
-    }
-
-    if (schema.hasOwnProperty('multipleOf') && number % schema.multipleOf !== 0) {
-      addError(errors, schema, number, path, options, 'multipleOf');
-    }
-    return errors;
-  },
-
-  
-  //
-  // Integer
-  //
-  
-  'integer': function(schema, integer, path, options) {
-
-    var errors = [];
-
-    if (!_.isNumber(integer)) {
-      return addError(errors, schema, integer, path, options, 'type');
-    }
-
-    if (Math.ceil(integer) !== integer) {
-      addError(errors, schema, integer, path, options, 'type');
-    }
-
-    addErrors(errors, validators['number'](schema, integer, path, options));
-
-    return errors;
-  },
-
-  
-  //
-  // Object
-  //
-  
-  'object': function(schema, object, path, options) {
-
-    var errors = [];
-
-    if (!_.isObject(object) || _.isArray(object)) {
-      return addError(errors, schema, object, path, options, 'type');
-    }
-
-    // validate min/max
-    
-    if (schema.minProperties && _.keys(object).length < schema.minProperties) {
-      addError(errors, schema, object, path, options, 'minProperties');
-    }
-    if (schema.maxProperties && _.keys(object).length > schema.maxProperties) {
-      addError(errors, schema, object, path, options, 'maxProperties');
-    }
-    
-    // validate dependencies
-    
-    if (schema.dependencies) {
-      _.each(schema.dependencies, function(dependency, key) {
-        if (!object.hasOwnProperty(key)) {
-          addError(errors, schema, object, path + '.' + key, 
-                   options, 'dependencyNoProp');
-        }
-        if (_.isArray(dependency)) {
-          // validate property name array dependency
-          _.each(dependency, function(depProp) {
-            if (!object.hasOwnProperty(depProp)) {
-              addError(errors, schema, object, path + '.' + key, options, 'dependency');
-            }
-          });
-        }
-        else if (_.isObject(dependency)) {
-          // validate schema dependency
-          addErrors(errors, validate(dependency, object, path, options));
-        }
-      });
-    }
-
-    // validate required
-    
-    if (schema.required) {
-      _.each(schema.required, function(reqProp) {
-        if (!object.hasOwnProperty(reqProp)) {
-          addError(errors, schema, object, path + '.' + reqProp, options,
-                   'required', {property: reqProp});
-        }
-      });
-    }
-
-    // validate properties, additionalProperties and patternProperties
-    
-    var pattern = schema.patternProperties ? _.keys(schema.patternProperties) : [];
-    var additionalAllowed = options.additionalProperties;
-    if (schema.hasOwnProperty('additionalProperties')) {
-      additionalAllowed = !!schema.additionalProperties;
-    }
-    
-    _.each(object, function(value, key) {
-      // omit property names defined in the options
-      if (options.omitProperties && options.omitProperties.indexOf(key) !== -1) {
-        return;
-      }
-
-      // validate properties
-
-      if (schema.properties && schema.properties[key]) {
-        addErrors(errors, validate(schema.properties[key], value, path + '.' + key, options));
-        return;
-      }
-
-      // validate pattern properties
-
-      for (var i = 0; i < pattern.length; ++i) {
-        if (key.match(new RegExp(pattern[i]))) {
-          addErrors(errors, validate(schema.patternProperties[pattern[i]], value, path, options));
-          return;
-        }
-      }
-
-      // validate additional properties
-
-      if (!additionalAllowed) {
-        addError(errors, schema, object, path + '.' + key, options, 'additionalProperties');
-      }
-      else if (schema.additionalProperties && schema.additionalProperties[key]) {
-        addErrors(errors, validate(schema.additionalProperties[key],
-                                   value, path + '.' + key, options));
-      }
-    });
-    return errors;
-  },
-
-  
-  //
-  // Array
-  //
-  
-  'array': function(schema, array, path, options) {
-
-    var errors = [];
-
-    if (!_.isArray(array)) {
-      return addError(errors, schema, array, path, options, 'type');
-    }
-
-    // validate min/max
-
-    if (schema.hasOwnProperty('minItems') && array.length < schema.minItems) {
-      addError(errors, schema, array, path, options, 'minItems');
-    }
-    if (schema.hasOwnProperty('maxItems') && array.length > schema.maxItems) {
-      addError(errors, schema, array, path, options, 'maxItems');
-    }
-
-    // validate unique items
-
-    if (schema.uniqueItems) {
-      var cache = {};
-      _.each(array, function(item, i) {
-        var str = JSON.stringify(item);
-        if (cache[str]) {
-          addError(errors, schema, array, path, options, 'uniqueItems');
-          return;
-        }
-        cache[str] = true;
-      });
-    }
-    
-    // validate items and additionalItems
-    
-    if (schema.items && _.isObject(schema.items)) {
-      _.each(array, function(item, i) {
-
-        // validate items
-
-        var errs = null;
-        if (_.isArray(schema.items)) {
-          // treat items as array of schema objects - array tuple validation
-          if (i < schema.items.length) {
-            errs = validate(schema.items[i], item, path + '[' + i + ']', options);
-            if (errs.length === 0) {
-              return;
-            }
-          }
-        }
-        else {
-          // treat items as schema object
-          errs = validate(schema.items, item, path + '[' + i + ']', options);
-          if (errs.length === 0) {
-            return;
-          }
-        }
-
-        // validate additional items
-
-        if (schema.hasOwnProperty('additionalItems') || !options.additionalItems) {
-          if (_.isObject(schema.additionalItems)) {
-            // validate against additional items
-            var addErrs = validate(schema.additionalItems, item, path + '[' + i + ']', options);
-            if (addErrs.length > 0) {
-              // show errors from items
-              addErrors(errors, errs);
-            }
-          }
-          else if (!schema.additionalItems || !options.additionalItems) {
-            // no additional items allowed
-            addErrors(errors, errs);
-          }
-        }
-      });
-    }
-
-    return errors;
-  },
-
-  
-  //
-  // Null
-  //
-  
-  'null': function(schema, value, path, options) {
-    if (value !== null) {
-      return addError([], schema, value, path, options, 'type');
-    }
-    return [];
-  },
-
-  
-  //
-  // Any
-  //
-  
-  'any': function(schema, value, path, options) {
-    return [];
-  },
-
-  
-  //
-  // Enum
-  //
-
-  'enum': function(schema, value, path, options) {
-
-    if (!_.isArray(schema.enum)) {
-      return addError([], schema, value, path, options, 'enumNoArray');
-    }
-
-    // compare enum values on string basis
-
-    var vstr = JSON.stringify(value);
-    var strs = _.map(schema.enum, JSON.stringify);
-    
-    if (strs.indexOf(vstr) === -1) {
-      return addError([], schema, value, path, options, 'enum');
-    }
-    return [];
-  },
-
-  
-  //
-  // AllOf
-  //
-  
-  'allOf': function(schema, value, path, options) {
-
-    var errors = [];
-
-    _.each(schema.allOf, function(schema) {
-      addErrors(errors, validate(schema, value, path, options));
-    });
-
-    return errors;
-  },
-
-
-  //
-  // AnyOf
-  //
-  
-  'anyOf': function(schema, value, path, options) {
-
-    var valid = false;
-
-    _.each(schema.anyOf, function(schema) {
-      var localErrors = validate(schema, value, path, options);
-      valid = localErrors.length === 0 ? true : valid;
-    });
-
-    if (!valid) {
-      return addError([], schema, value, path, options, 'anyOf');
-    }
-
-    return [];
-  },
-
-  
-  //
-  // OneOf
-  //
-  
-  'oneOf': function(schema, value, path, options) {
-
-    var numValid = 0;
-
-    _.each(schema.oneOf, function(schema) {
-      var localErrors = validate(schema, value, path, options);
-      if (localErrors.length === 0) numValid++;
-    });
-
-    if (numValid === 0) {
-      return addError([], schema, value, path, options, 'oneOf');
-    }
-    if (numValid > 1) {
-      return addError([], schema, value, path, options, 'notOneOf');
-    }
-
-    return [];
-  },
-
-
-  //
-  // Type
-  //
-
-  'type': function(schema, value, path, options) {
-
-    var errors = [];
-
-    if (_.isArray(schema.type)) {
-
-      // union type
-
-      var valid = false;
-      _.each(schema.type, function(type) {
-        if (validators[type]) {
-          var localErrors = validators[type](schema, value, path, options);
-          if (localErrors.length === 0) {
-            valid = true;
-            return;
-          }
-        }
-        else {
-          addError(errors, schema, value, path, options, 'unknownType');
-        }
-      });
-      if (!valid) {
-        addError(errors, schema, value, path, options, 'unionTypeNotValid');
-      }
-    }
-    else {
-      
-      // single type
-
-      if (validators[schema.type]) {
-        addErrors(errors, validators[schema.type](schema, value, path, options));
-      }
-      else {
-        addError(errors, schema, value, path, options, 'unknownType');
-      }
-    }
-    return errors;
-  },
-
-
-  //
-  // $Ref
-  //
-  
-  '$ref': function(schema, value, path, options) {
-
-    var errors = [];
-    var subSchema = options.definitions[schema.$ref];
-
-    if (!subSchema) {
-      addError(errors, schema, value, path, options, '$ref');
-    }
-    else {
-      addErrors(errors, validate(subSchema, value, path, options));
-    }
-    return errors;
-  },
-
-
-  //
-  // Unkown
-  //
-
-  'unkown': function(schema, value, path, options) {
-    return addError([], schema, value, path, options, 'unknownSchema');
-  }
-};
-
-
-function validate(schema, value, path, options) {
-
-  var handler = 'unkown';
-
-  // infer object or array type
-  if (!schema.type) {
-    if (schema.properties) schema.type = 'object';
-    if (schema.items) schema.type = 'array';
-  }
-  
-  if (schema.type)  handler = 'type';
-  if (schema.enum)  handler = 'enum';
-  if (schema.oneOf) handler = 'oneOf';
-  if (schema.allOf) handler = 'allOf';
-  if (schema.anyOf) handler = 'anyOf';
-  if (schema.$ref)  handler = '$ref';
-  
-  return validators[handler](schema, value, path, options);
-}
-
-
-// expose validate
-module.exports = function(schema, value, options) {
-
-  // empty schema is valid
-  if (_.isEmpty(schema)) {
-    return null;
-  }
-  
-  var defaultOptions = {
-    // always validate formats
-    validateFormat: false,
-    // allow/disallow additional properties when not specified otherwise
-    additionalProperties: true,
-    // allow/disallow additional items when not specified otherwise
-    additionalItems: true,
-    // array of property names to be omitted during validation
-    omitProperties: null,
-    // called on each error
-    onError: null,
-    // subschema definitions
-    definitions: {}
-  };
-  _.extend(defaultOptions, options);
-  
-  var errors = validate(schema, value, '', defaultOptions);
-
-  return errors.length > 0 ? errors : null;
-};
