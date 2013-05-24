@@ -21,8 +21,8 @@ Installation
 wip
 
 
-Usage
------
+Examples
+--------
 
 ### Create schema using method chaining
 
@@ -89,6 +89,10 @@ API
 #### Common methods available to all types
 
 * `jski.number().title('foo').description('bar').default(11)`
+
+### Validation
+
+* `var errors = jski.number().maximum(127).validate(128)`
 
 ### Serializing schemas from/to JSON
 
