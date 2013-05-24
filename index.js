@@ -46,6 +46,11 @@ function addErrors(errors, newErrors) {
 }
 
 
+function isKeyword(key) {
+  return ['type', 'enum', 'allOf', 'anyOf', 'oneOf', '$ref'].indexOf(key) !== -1;
+};
+
+
 function fromJSON(schema) {
 
   var validator;
@@ -102,6 +107,7 @@ function Validator(type) {
   this.type = type;
   this.options = {};
   this.constraints = [];
+  this.customAttributes = [];
 
   // meta keywords
   this.addOption('title', '');
@@ -127,6 +133,10 @@ Validator.prototype.toJSON = function() {
     }
   });
 
+  Object.keys(this.customAttributes).forEach(function(key) {
+    schema[key] = self.customAttributes[key];
+  });
+  
   return schema;
 };
 
@@ -134,20 +144,30 @@ Validator.prototype.toJSON = function() {
 Validator.prototype.fromJSON = function(schema) {
 
   var self = this;
-  
-  Object.keys(this.options).forEach(function(key) {
-    if (schema.hasOwnProperty(key)) {
+
+  Object.keys(schema).forEach(function(key) {
+
+    if (isKeyword(key)) return;
+    
+    if (self.options.hasOwnProperty(key)) {
       self.options[key] = {
         enabled: true,
         value: schema[key]
       };
     }
-  });
+    else {
+      var isConstraint = false;
+      
+      self.constraints.forEach(function(constraint) {
+        if (constraint.name === key) {
+          self[constraint.name](constraint.fromJSON(schema[key]));
+          isConstraint = true;
+        }
+      });
 
-  this.constraints.forEach(function(constraint) {
-    var s = schema[constraint.name];
-    if (s) {
-      self[constraint.name](constraint.fromJSON(s));
+      if (!isConstraint) {
+        self.customAttributes[key] = schema[key];
+      }
     }
   });
 
@@ -200,6 +220,13 @@ Validator.prototype.addConstraint = function(name, validate, toJSON, fromJSON) {
   };
 
   this.constraints.push(constraint);
+};
+
+
+Validator.prototype.custom = function(name, value) {
+
+  this.customAttributes[name] = value;
+  return this;
 };
 
 

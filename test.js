@@ -582,6 +582,19 @@ describe('jski', function() {
     });
   });
 
+  
+  describe('custom attributes', function() {
+
+    it('should add custom attributes', function() {
+      assert.deepEqual(jski.object().custom('foo', 11).toJSON(), { type: 'object', foo: 11 });
+    });
+
+    it('should keep custom attributes from json schema', function() {
+      assert.deepEqual(jski.schema({ type: 'object', foo: 11 }).toJSON(), { type: 'object', foo: 11 });
+    });
+  });
+
+           
   describe('complex schema', function() {
 
     var schema = jski.object({
