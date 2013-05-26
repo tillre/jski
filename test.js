@@ -658,4 +658,11 @@ describe('jski', function() {
       assert(schema.validate(data, { definitions: definitions }).length === 1);
     });
   });
+
+  describe('validating schemas', function() {
+
+    it('should validate another schema validator', function() {
+      assert(jski.object({ type: jski.string() }).validate(jski.number()).length === 0);
+    });
+  });
 });

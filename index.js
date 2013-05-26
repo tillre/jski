@@ -131,8 +131,10 @@ function Validator(type) {
   this.addOption('title', '');
   this.addOption('description', '');
   this.addOption('default');
-  this.addOption('definitions');
 }
+
+
+Validator.prototype.__jski__ = true;
 
 
 Validator.prototype.toJSON = function() {
@@ -209,10 +211,10 @@ Validator.prototype.addOption = function(name, defaultValue) {
     }
 
     // set value
-    this._options[name] = {
-      enabled: true,
-      value: value
-    };
+    var o = this._options[name];
+    o.enabled = true;
+    o.value = value;
+    
     return this;
   };
 };
@@ -255,6 +257,16 @@ Validator.prototype.addCheck = function(check) {
 };
 
 
+Validator.prototype.definitions = function(defs) {
+
+  if (isUndefined(defs)) {
+    return this._definitions;
+  }
+  this._definitions = defs;
+  return this;
+}
+
+
 Validator.prototype.custom = function(name, value) {
 
   this._customAttributes[name] = value;
@@ -263,6 +275,11 @@ Validator.prototype.custom = function(name, value) {
 
 
 Validator.prototype.validate = function(value, options, path) {
+
+  // validate jski validators
+  if (isObject(value) && value.__jski__) {
+    value = value.toJSON();
+  }
 
   path = path || '';
   options = options || {};
