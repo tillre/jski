@@ -1,13 +1,27 @@
 
-
-function isArray(obj) {
-  if (Array.isArray) return Array.isArray(obj);
-  return toString.call(obj) == '[object Array]';
+function isNull(x) {
+  return x === null;
 }
 
+function isBoolean(x) {
+  return typeof x === 'boolean';
+}
 
-function isObject(obj) {
-  return obj === Object(obj);
+function isNumber(x) {
+  return typeof x === 'number';
+}
+
+function isString(x) {
+  return typeof x === 'string';
+}
+
+function isArray(x) {
+  if (Array.isArray) return Array.isArray(x);
+  return toString.call(x) == '[object Array]';
+}
+
+function isObject(x) {
+  return x === Object(x);
 }
 
 
@@ -90,7 +104,6 @@ function fromJSON(schema) {
   }
 
   if (!validator) {
-    console.log('unkown schema', schema, new Error().stack);
     throw new Error('Unkown schema');
   }
   
@@ -107,12 +120,14 @@ function Validator(type) {
   this.type = type;
   this.options = {};
   this.constraints = [];
+  this.checks = [];
   this.customAttributes = [];
 
   // meta keywords
   this.addOption('title', '');
   this.addOption('description', '');
   this.addOption('default');
+  this.addOption('definitions');
 }
 
 
@@ -223,6 +238,12 @@ Validator.prototype.addConstraint = function(name, validate, toJSON, fromJSON) {
 };
 
 
+Validator.prototype.addCheck = function(check) {
+
+  this.checks.push(check);
+};
+
+
 Validator.prototype.custom = function(name, value) {
 
   this.customAttributes[name] = value;
@@ -234,12 +255,18 @@ Validator.prototype.validate = function(value, options, path) {
 
   path = path || '';
   var errors = [];
+  var self = this;
 
   this.constraints.forEach(function(constraint) {
     if (constraint.enabled) {
       addErrors(errors, constraint.validate(value, options, path));
     }
   });
+
+  this.checks.forEach(function(check) {
+    addErrors(errors, check.call(self, value, options, path));
+  });
+  
   return errors;
 };
 
@@ -251,22 +278,15 @@ Validator.prototype.validate = function(value, options, path) {
 function BooleanValidator() {
 
   Validator.call(this, 'boolean');
+
+  this.addCheck(function(value, options, path) {
+    return isBoolean(value) ? [] : [
+      makeError('Value is not a boolean', path)
+    ];
+  });
 }
 
-
 inherit(BooleanValidator, Validator);
-
-
-BooleanValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-
-  if (!(typeof value === 'boolean')) {
-    addError(errors, 'Value is not a boolean', path);
-  }
-  return errors;
-};
 
 
 //
@@ -303,22 +323,15 @@ function NumberValidator() {
       ];
     }
   );
+
+  this.addCheck(function(value, options, path) {
+    return isNumber(value) ? [] : [
+      makeError('value is not a number', path)
+    ];
+  });
 }
 
-
 inherit(NumberValidator, Validator);
-
-
-NumberValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-  
-  if (!(typeof value === 'number')) {
-    addError(errors, 'Value is not a number', path);
-  }
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
-};
 
 
 //
@@ -329,22 +342,16 @@ function IntegerValidator() {
 
   NumberValidator.call(this, arguments);
   this.type = 'integer';
+
+  this.addCheck(function(value, options, path) {
+    return Math.floor(value) === value ? [] : [
+      makeError('Value is not an integer', path)
+    ];
+  });
 }
 
 
 inherit(IntegerValidator, NumberValidator);
-
-
-IntegerValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-
-  if (!(typeof value === 'number') || Math.floor(value) !== value) {
-    addError(errors, 'Value is not a integer', path);
-  }
-  return addErrors(errors, NumberValidator.prototype.validate.apply(this, arguments));
-};
 
 
 //
@@ -394,22 +401,16 @@ function StringValidator() {
       return [];
     }
   );
+
+  this.addCheck(function(value, options, path) {
+    return isString(value) ? [] : [
+      makeError('Value is not a string', path)
+    ];
+  });
 }
 
 
 inherit(StringValidator, Validator);
-
-
-StringValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-  
-  if (!(typeof value === 'string')) {
-    return addError(errors, 'Value is not a string', path);
-  }
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
-};
 
 
 //
@@ -515,26 +516,17 @@ function ArrayValidator(items) {
     }
   );
 
+  this.addCheck(function(values, options, path) {
+    return isArray(values) ? [] : [
+      makeError('Value is not a array', path)
+    ];
+  });
+  
   // set items constraint
   if (items) this.items(items);
 }
 
-
 inherit(ArrayValidator, Validator);
-
-
-ArrayValidator.prototype.validate = function(values, options, path) {
-
-  path = path || '';
-  var errors = [];
-  var self = this;
-  
-  if (!isArray(values)) {
-    return addError(errors, 'Value is not a array', path);
-  }
-  
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
-};
 
 
 //
@@ -614,25 +606,17 @@ function ObjectValidator(properties) {
     }
   );
 
+  this.addCheck(function(value, options, path) {
+    return isObject(value) && !isArray(value) ? [] : [
+      makeError('Value is not an object', path)
+    ];
+  });
+  
   // shortcut to set constraint
   if (properties) this.properties(properties);
 }
 
-
 inherit(ObjectValidator, Validator);
-
-
-ObjectValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-  
-  if (!isObject(value) || isArray(value)) {
-    addError(errors, 'Value is not an object', path);
-  }
-
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
-};
 
 
 //
@@ -643,6 +627,27 @@ function EnumValidator(items) {
 
   this.items = items || [];
   Validator.call(this, 'enum');
+
+  this.addCheck(function(value, options, path) {
+    var errors = [];
+    var valid = false;
+    
+    this.items.forEach(function(item) {
+      if (!valid) {
+        if (isObject(item) || isArray(item)) {
+          valid = JSON.stringify(item) === JSON.stringify(value);
+        }
+        else {
+          valid = item === value;
+        }
+      }
+    });
+
+    if (!valid) {
+      addError(errors, 'Not a valid enumeration item: ' + value, path);
+    }
+    return errors;
+  });
 }
 
 
@@ -660,31 +665,6 @@ EnumValidator.prototype.fromJSON = function(schema) {
 };
 
 
-EnumValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-  var valid = false;
-  
-  this.items.forEach(function(item) {
-    if (!valid) {
-      if (isObject(item) || isArray(item)) {
-        valid = JSON.stringify(item) === JSON.stringify(value);
-      }
-      else {
-        valid = item === value;
-      }
-    }
-  });
-
-  if (!valid) {
-    addError(errors, 'Not a valid enumeration item: ' + value, path);
-  }
-
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
-};
-
-
 //
 // Any Validator
 //
@@ -696,10 +676,6 @@ function AnyValidator() {
 
 inherit(AnyValidator, Validator);
 
-AnyValidator.prototype.validate = function(value, options, path) {
-  return addErrors([], Validator.prototype.validate.apply(this, arguments));
-};
-
 
 //
 // Null Validator
@@ -708,20 +684,44 @@ AnyValidator.prototype.validate = function(value, options, path) {
 function NullValidator() {
 
   Validator.call(this, 'null');
+
+  this.addCheck(function(value, options, path) {
+    return isNull(value) ? [] : [
+      makeError('Value is not null', path)
+    ];
+  });
 }
 
 inherit(NullValidator, Validator);
 
-NullValidator.prototype.validate = function(value, options, path) {
 
-  path = path || '';
-  var errors = [];
+//
+// *Of Validator
+//
 
-  if (typeof value !== 'object' || value !== null) {
-    addError(errors, 'Value is not null', path);
-  }
-  
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
+function OfValidator(items, type) {
+
+  this.items = items;
+  Validator.call(this, type);
+}
+
+inherit(OfValidator, Validator);
+
+
+OfValidator.prototype.toJSON = function() {
+  var schema = {};
+  schema[this.type] = this.items.map(function(item) {
+    return item.toJSON();
+  });
+  return schema;
+};
+
+
+OfValidator.prototype.fromJSON = function(schema) {
+  this.items = schema[this.type].map(function(item) {
+    return fromJSON(item);
+  });
+  return this;
 };
 
 
@@ -731,41 +731,18 @@ NullValidator.prototype.validate = function(value, options, path) {
 
 function AllOfValidator(items) {
 
-  this.items = items;
-  Validator.call(this, 'allOf');
+  OfValidator.call(this, items, 'allOf');
+
+  this.addCheck(function(value, options, path) {
+    var errors = [];
+    this.items.forEach(function(item) {
+      addErrors(errors, item.validate(value, options, path));
+    });
+    return errors;
+  });
 }
 
-inherit(AllOfValidator, Validator);
-
-
-AllOfValidator.prototype.toJSON = function() {
-  var schema = {};
-  schema[this.type] = this.items.map(function(item) {
-    return item.toJSON();
-  });
-  return schema;
-};
-
-
-AllOfValidator.prototype.fromJSON = function(schema) {
-  this.items = schema[this.type].map(function(item) {
-    return fromJSON(item);
-  });
-  return this;
-};
-
-
-AllOfValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-
-  this.items.forEach(function(item) {
-    addErrors(errors, item.validate(value, options, path));
-  });
-
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
-};
+inherit(AllOfValidator, OfValidator);
 
 
 //
@@ -774,28 +751,23 @@ AllOfValidator.prototype.validate = function(value, options, path) {
 
 function AnyOfValidator(items) {
 
-  AllOfValidator.call(this, items);
-  this.type = 'anyOf';
+  OfValidator.call(this, items, 'anyOf');
+
+  this.addCheck(function(value, options, path) {
+    var errors = [];
+    var valid = false;
+
+    this.items.forEach(function(item) {
+      valid = item.validate(value, options, path).length === 0 || valid;
+    });
+    if (!valid) {
+      addError(errors, 'Value does not match any of the schemas', path);
+    }
+    return errors;
+  });
 }
 
 inherit(AnyOfValidator, AllOfValidator);
-
-
-AnyOfValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-  var valid = false;
-
-  this.items.forEach(function(item) {
-    valid = item.validate(value, options, path).length === 0 || valid;
-  });
-  if (!valid) {
-    addError(errors, 'Value does not match any of the schemas', path);
-  }
-
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
-};
 
 
 //
@@ -804,30 +776,26 @@ AnyOfValidator.prototype.validate = function(value, options, path) {
 
 function OneOfValidator(items) {
 
-  AllOfValidator.call(this, items);
-  this.type = 'oneOf';
+  OfValidator.call(this, items, 'oneOf');
+
+  this.addCheck(function(value, options, path) {
+    var errors = [];
+    var valid = 0;
+
+    this.items.forEach(function(item) {
+      valid += (item.validate(value, options, path).length === 0) ? 1 : 0;
+    });
+    if (valid === 0) {
+      addError(errors, 'Value does not validate against one of the schemas');
+    }
+    if (valid > 1) {
+      addError(errors, 'Value does validate against more than one of the schemas');
+    }
+    return errors;
+  });
 }
 
 inherit(OneOfValidator, AllOfValidator);
-
-OneOfValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-  var valid = 0;
-
-  this.items.forEach(function(item) {
-    valid += (item.validate(value, options, path).length === 0) ? 1 : 0;
-  });
-  if (valid === 0) {
-    addError(errors, 'Value does not validate against one of the schemas');
-  }
-  if (valid > 1) {
-    addError(errors, 'Value does validate against more than one of the schemas');
-  }
-
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
-};
 
 
 //
@@ -838,6 +806,17 @@ function RefValidator(refName) {
 
   this.ref = refName;
   Validator.call(this, '$ref');
+
+  this.addCheck(function(value, options, path) {
+    var errors = [];
+    if (options && options.definitions && options.definitions[this.ref]) {
+      addErrors(errors, options.definitions[this.ref].validate(value, options, path));
+    }
+    else {
+      addError(errors, 'Definition of schema reference not found: ' + value, path);
+    }
+    return errors;
+  });
 }
 
 inherit(RefValidator, Validator);
@@ -851,22 +830,6 @@ RefValidator.prototype.toJSON = function() {
 RefValidator.prototype.fromJSON = function(schema) {
   this.ref = schema.$ref;
   return this;
-};
-
-
-RefValidator.prototype.validate = function(value, options, path) {
-
-  path = path || '';
-  var errors = [];
-  
-  if (options && options.definitions && options.definitions[this.ref]) {
-    addErrors(errors, options.definitions[this.ref].validate(value, options, path));
-  }
-  else {
-    addError(errors, 'Definition of schema reference not found: ' + value, path);
-  }
-
-  return addErrors(errors, Validator.prototype.validate.apply(this, arguments));
 };
 
 
