@@ -1,4 +1,8 @@
 
+function isUndefined(x) {
+  return x === void 0;
+}
+
 function isNull(x) {
   return x === null;
 }
@@ -118,10 +122,10 @@ function fromJSON(schema) {
 function Validator(type) {
 
   this.type = type;
-  this.options = {};
-  this.constraints = [];
-  this.checks = [];
-  this.customAttributes = [];
+  this._options = {};
+  this._constraints = [];
+  this._checks = [];
+  this._customAttributes = [];
 
   // meta keywords
   this.addOption('title', '');
@@ -136,20 +140,20 @@ Validator.prototype.toJSON = function() {
   var schema = { type: this.type };
   var self = this;
 
-  Object.keys(this.options).forEach(function(key) {
-    if (self.options[key].enabled) {
-      schema[key] = self.options[key].value;
+  Object.keys(this._options).forEach(function(key) {
+    if (self._options[key].enabled) {
+      schema[key] = self._options[key].value;
     }
   });
 
-  this.constraints.forEach(function(constraint) {
+  this._constraints.forEach(function(constraint) {
     if (constraint.enabled) {
       schema[constraint.name] = constraint.toJSON ? constraint.toJSON() : constraint.value;
     }
   });
 
-  Object.keys(this.customAttributes).forEach(function(key) {
-    schema[key] = self.customAttributes[key];
+  Object.keys(this._customAttributes).forEach(function(key) {
+    schema[key] = self._customAttributes[key];
   });
   
   return schema;
@@ -164,8 +168,8 @@ Validator.prototype.fromJSON = function(schema) {
 
     if (isKeyword(key)) return;
     
-    if (self.options.hasOwnProperty(key)) {
-      self.options[key] = {
+    if (self._options.hasOwnProperty(key)) {
+      self._options[key] = {
         enabled: true,
         value: schema[key]
       };
@@ -173,7 +177,7 @@ Validator.prototype.fromJSON = function(schema) {
     else {
       var isConstraint = false;
       
-      self.constraints.forEach(function(constraint) {
+      self._constraints.forEach(function(constraint) {
         if (constraint.name === key) {
           self[constraint.name](constraint.fromJSON(schema[key]));
           isConstraint = true;
@@ -181,7 +185,7 @@ Validator.prototype.fromJSON = function(schema) {
       });
 
       if (!isConstraint) {
-        self.customAttributes[key] = schema[key];
+        self._customAttributes[key] = schema[key];
       }
     }
   });
@@ -192,13 +196,20 @@ Validator.prototype.fromJSON = function(schema) {
 
 Validator.prototype.addOption = function(name, defaultValue) {
 
-  this.options[name] = {
+  this._options[name] = {
     enabled: false,
     value: defaultValue
   };
 
   this[name] = function(value) {
-    this.options[name] = {
+
+    // get value when not passed
+    if (isUndefined(value)) {
+      return this._options[name].value;
+    }
+
+    // set value
+    this._options[name] = {
       enabled: true,
       value: value
     };
@@ -234,19 +245,19 @@ Validator.prototype.addConstraint = function(name, validate, toJSON, fromJSON) {
     return this;
   };
 
-  this.constraints.push(constraint);
+  this._constraints.push(constraint);
 };
 
 
 Validator.prototype.addCheck = function(check) {
 
-  this.checks.push(check);
+  this._checks.push(check);
 };
 
 
 Validator.prototype.custom = function(name, value) {
 
-  this.customAttributes[name] = value;
+  this._customAttributes[name] = value;
   return this;
 };
 
@@ -257,13 +268,13 @@ Validator.prototype.validate = function(value, options, path) {
   var errors = [];
   var self = this;
 
-  this.constraints.forEach(function(constraint) {
+  this._constraints.forEach(function(constraint) {
     if (constraint.enabled) {
       addErrors(errors, constraint.validate(value, options, path));
     }
   });
 
-  this.checks.forEach(function(check) {
+  this._checks.forEach(function(check) {
     addErrors(errors, check.call(self, value, options, path));
   });
   
@@ -476,12 +487,12 @@ function ArrayValidator(items) {
           if (i < items.length) {
             addErrors(errors, items[i].validate(value, options, path + '[' + i + ']'));
           }
-          else  if (!self.options.additionalItems.value){
+          else if (!self.additionalItems()) {
             addError(errors, 'Array index outside tuple length: ' + i, path + '[' + i + ']');
           }
         });
       }
-      else if (isObject(items) && !this.options.additionalItems.value) {
+      else if (isObject(items) && !this.additionalItems()) {
 
         // array
         
@@ -582,7 +593,7 @@ function ObjectValidator(properties) {
         if (properties[n]) {
           addErrors(errors, properties[n].validate(value[n], options, path + '.' + n));
         }
-        else if (!this.options.additionalProperties.value) {
+        else if (!this.additionalProperties()) {
           addError(errors, 'Object has no property with name: ' + n, path + '.' + n);
         }
       }

@@ -24,7 +24,7 @@ describe('jski', function() {
     it('should not validate float value as integer', function() {
       assert(jski.integer().validate(3.3).length === 1);
     });
-    
+
     
     describe('5.1.1. multipleOf', function() {
 
