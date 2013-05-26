@@ -647,6 +647,11 @@ describe('jski', function() {
     it('should validate', function() {
       assert(schema.validate(data, { definitions: definitions }).length === 0);
     });
+
+    it('should validate when added definitions', function() {
+      schema.definitions(definitions);
+      assert(schema.validate(data).length === 0);
+    });
     
     it('should not validate', function() {
       data.sections.push(42);

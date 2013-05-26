@@ -265,6 +265,15 @@ Validator.prototype.custom = function(name, value) {
 Validator.prototype.validate = function(value, options, path) {
 
   path = path || '';
+  options = options || {};
+
+  // pass on local definitions
+  var defs = this.definitions();
+  if (defs) {
+    options.definitions = options.definitions || {};
+    extend(options.definitions, defs);
+  }
+  
   var errors = [];
   var self = this;
 
