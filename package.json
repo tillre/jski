@@ -10,9 +10,7 @@
   "repository": "",
   "author": "",
   "license": "BSD",
-
   "dependencies": {
-    "underscore": "1.4.x"
   },
   "devDependencies": {
     "mocha": "1.8.x"
