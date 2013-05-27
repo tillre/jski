@@ -11,6 +11,7 @@ jski validates a subset of json schema v4. Following features are missing or res
 * object: no patternProperties
 * object: no dependencies
 * $ref: definitions are solely looked up by name in `options.definitions` or `jski.object({...}).defintions({...})`
+* not: not supported
 
 
 Installation
