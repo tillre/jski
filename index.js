@@ -42,6 +42,11 @@ function inherit(a, b) {
 }
 
 
+function clone(o) {
+  return JSON.parse(JSON.stringify(o));
+}
+
+
 function makeError(message, path) {
   var err = new Error(message);
   err.path = path;
@@ -196,10 +201,10 @@ Validator.prototype.fromJSON = function(schema) {
 };
 
 
-Validator.prototype.addOption = function(name, defaultValue) {
+Validator.prototype.addOption = function(name, defaultValue, enabled) {
 
   this._options[name] = {
-    enabled: false,
+    enabled: enabled || false,
     value: defaultValue
   };
 
@@ -692,13 +697,13 @@ inherit(EnumValidator, Validator);
 
 
 EnumValidator.prototype.toJSON = function() {
-  return { 'enum': this.items };
+  return Validator.prototype.toJSON.call(this, { 'enum': this.items });
 };
 
 
 EnumValidator.prototype.fromJSON = function(schema) {
   this.items = schema.enum;
-  return this;
+  return Validator.prototype.fromJSON.call(this, schema);
 };
 
 
@@ -772,6 +777,7 @@ function AllOfValidator(items) {
 
   this.addCheck(function(value, options, path) {
     var errors = [];
+    
     this.items.forEach(function(item) {
       addErrors(errors, item.validate(value, options, path));
     });

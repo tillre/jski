@@ -533,7 +533,9 @@ describe('jski', function() {
       ],
       'enum': [
         { schema: { 'enum': [1, 2, 3] },
-          val: jski.enum([1, 2, 3]) }
+          val: jski.enum([1, 2, 3]) },
+        { schema: { 'enum': [1, 2, 3], foo: 'bar'},
+          val: jski.enum([1, 2, 3]).custom('foo', 'bar')}
       ],
       'null': [
         { schema: { type: 'null' },
@@ -545,7 +547,9 @@ describe('jski', function() {
       ],
       allOf: [
         { schema: { allOf: [{ type: 'number'}, { type: 'string' }]},
-          val: jski.allOf([jski.number(), jski.string()]) }
+          val: jski.allOf([jski.number(), jski.string()]) },
+        { schema: { allOf: [{ type: 'number'}, { type: 'string' }], foo: 'bar' },
+          val: jski.allOf([jski.number(), jski.string()]).custom('foo', 'bar') }
       ],
       anyOf: [
         { schema: { anyOf: [{ type: 'number'}, { type: 'string' }]},
@@ -557,7 +561,9 @@ describe('jski', function() {
       ],
       ref: [
         { schema: { $ref: 'foo' },
-          val: jski.ref('foo') }
+          val: jski.ref('foo') },
+        { schema: { $ref: 'foo', foo: 'bar' },
+          val: jski.ref('foo').custom('foo', 'bar') }
       ]
     };
 
