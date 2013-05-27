@@ -137,9 +137,9 @@ function Validator(type) {
 Validator.prototype.__jski__ = true;
 
 
-Validator.prototype.toJSON = function() {
+Validator.prototype.toJSON = function(schema) {
 
-  var schema = { type: this.type };
+  schema = schema || { type: this.type };
   var self = this;
 
   Object.keys(this._options).forEach(function(key) {
@@ -750,7 +750,7 @@ OfValidator.prototype.toJSON = function() {
   schema[this.type] = this.items.map(function(item) {
     return item.toJSON();
   });
-  return schema;
+  return Validator.prototype.toJSON.call(this, schema);
 };
 
 
@@ -758,7 +758,7 @@ OfValidator.prototype.fromJSON = function(schema) {
   this.items = schema[this.type].map(function(item) {
     return fromJSON(item);
   });
-  return this;
+  return Validator.prototype.fromJSON.call(this, schema);
 };
 
 
@@ -846,6 +846,7 @@ function RefValidator(refName) {
 
   this.addCheck(function(value, options, path) {
     var errors = [];
+    
     if (options && options.definitions && options.definitions[this.ref]) {
       addErrors(errors, options.definitions[this.ref].validate(value, options, path));
     }
@@ -860,13 +861,13 @@ inherit(RefValidator, Validator);
 
 
 RefValidator.prototype.toJSON = function() {
-  return { $ref: this.ref };
+  return Validator.prototype.toJSON.call(this, { $ref: this.ref });
 };
 
 
 RefValidator.prototype.fromJSON = function(schema) {
   this.ref = schema.$ref;
-  return this;
+  return Validator.prototype.fromJSON.call(this, schema);
 };
 
 
