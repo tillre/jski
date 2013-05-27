@@ -1,8 +1,6 @@
 jski - json schema validator
 ============================
 
-## WORK IN PROGRESS
-
 JSON Schema support
 -------------------
 jski validates a subset of json schema v4. Following features are missing or restricted:
@@ -18,7 +16,7 @@ jski validates a subset of json schema v4. Following features are missing or res
 Installation
 ------------
 
-wip
+`npm install jski`
 
 
 Examples

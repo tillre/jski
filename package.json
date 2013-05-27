@@ -1,7 +1,18 @@
 {
   "name": "jski",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "json schema validator",
+  "keywords": [
+    "json",
+    "schema"
+  ],
+  "author": {
+    "name": "skoni"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/skoni/jski.git"
+  },
   "main": "index.js",
   "scripts": {
     "test": "./node_modules/mocha/bin/mocha",
@@ -9,7 +20,10 @@
   },
   "repository": "",
   "author": "",
-  "license": "BSD",
+  "licenses": [ {
+    "type": "Apache 2.0",
+    "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+  } ],
   "dependencies": {
   },
   "devDependencies": {
