@@ -12,7 +12,7 @@ jski validates a subset of json schema v4. Following features are missing or res
 * object: additionalProperties can only be true or false
 * object: no patternProperties
 * object: no dependencies
-* $ref: definitions are solely looked up by name in options.definitions
+* $ref: definitions are solely looked up by name in `options.definitions` or `jski.object({...}).defintions({...})`
 
 
 Installation
@@ -92,7 +92,16 @@ API
 
 ### Validation
 
+`validate(value, options)` returns an error array. When the value is valid, the array is empty.
+
 * `var errors = jski.number().maximum(127).validate(128)`
+
+### Definitions
+
+Add Defintions:
+
+* by method: `jski.object({...}).definitions({...})`
+* by options: `var errors = jski.object({...}).validate({...}, { definitions: {...} })`
 
 ### Serializing schemas from/to JSON
 
