@@ -113,7 +113,9 @@ function fromJSON(schema) {
   }
 
   if (!validator) {
-    throw new Error('Unkown schema');
+    var err = new Error('Unkown schema');
+    err.schema = schema;
+    throw err;
   }
   
   return validator.fromJSON(schema);
