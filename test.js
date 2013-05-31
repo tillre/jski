@@ -487,6 +487,10 @@ describe('jski', function() {
     it('should not validate when not matching referenced schema', function() {
       assert(schema.validate(true, { definitions: definitions }).length === 1);
     });
+
+    it('should validate when ommiting refs', function() {
+      assert(schema.validate(true, { definitions: definitions, omitRefs: true }).length === 0);
+    });
   });
 
 

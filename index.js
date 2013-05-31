@@ -852,6 +852,8 @@ function RefValidator(refName) {
 
   this.addCheck(function(value, options, path) {
     var errors = [];
+
+    if (options.omitRefs) return errors;
     
     if (options && options.definitions && options.definitions[this.ref]) {
       addErrors(errors, options.definitions[this.ref].validate(value, options, path));

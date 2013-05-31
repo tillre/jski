@@ -106,3 +106,10 @@ Add Defintions:
 
 * `jski.schema(Schema JSON)`
 * `jski.object().toJSON()`
+
+### Options
+
+`jski.object().validate(value, { definitions: defs, omitRefs: true })`
+
+* `definitions` - Dict where $refs are lookuped by name
+* `omitRefs` - Do not validate $refs
