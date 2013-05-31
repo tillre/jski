@@ -48,9 +48,7 @@ function clone(o) {
 
 
 function makeError(message, path) {
-  var err = new Error(message);
-  err.path = path;
-  return err;
+  return { message: message, path: path };
 }
 
 
