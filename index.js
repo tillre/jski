@@ -201,10 +201,10 @@ Validator.prototype.fromJSON = function(schema) {
 };
 
 
-Validator.prototype.addOption = function(name, defaultValue, enabled) {
+Validator.prototype.addOption = function(name, defaultValue) {
 
   this._options[name] = {
-    enabled: enabled || false,
+    enabled: false,
     value: defaultValue
   };
 
