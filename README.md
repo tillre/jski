@@ -109,7 +109,8 @@ Add Defintions:
 
 ### Create a default value for a schema
 
-
+* `jski.createValue(jski.number())`
+* `jski.createValue({ type: 'number' })`
 
 ### Options
 
