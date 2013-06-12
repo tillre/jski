@@ -72,6 +72,57 @@ function isKeyword(key) {
 };
 
 
+//
+// create a default value from schema
+// TODO: add methods to the validators to create values
+//       instead of converting it JSON representation
+//
+
+function createValue(schema) {
+
+  // convert jski object to schema
+  if (isObject(schema) && schema.__jski__) {
+    schema = schema.toJSON();
+  }
+  
+  var hasDefaultValue = schema.hasOwnProperty('default');
+  var type = schema.type;
+  
+  if (schema.enum) {
+    return hasDefaultValue ? schema.default : schema.enum[0];
+  }
+  if (schema.$ref) {
+    return hasDefaultValue ? schema.default : {};
+  }
+  // infer object and array
+  if (!schema.type) {
+    if (schema.properties) type = 'object';
+    if (schema.items) type = 'array';
+  }
+  
+  if (!type) throw new Error('Cannot create default value for schema without type');
+
+  switch(type) {
+  case 'boolean': return hasDefaultValue ? schema.default : true;
+  case 'integer': return hasDefaultValue ? schema.default : 0;
+  case 'number': return hasDefaultValue ? schema.default : 0;
+  case 'string': return hasDefaultValue ? schema.default : '';
+  case 'object': {
+    if (hasDefaultValue) return schema.default;
+    var obj = {};
+    if (typeof schema.properties === 'object') {
+      Object.keys(schema.properties).forEach(function(key) {
+        obj[key] = createValue(schema.properties[key]);
+      });
+    }
+    return obj;
+  }
+  case 'array': return hasDefaultValue ? schema.default : [];
+  default: throw new Error('Cannot create default value for unknown type: ' + type);
+  }
+}
+
+
 function fromJSON(schema) {
 
   var validator;
@@ -899,7 +950,8 @@ module.exports = {
   oneOf:   function(items) { return new OneOfValidator(items); },
   ref:     function(name) { return new RefValidator(name); },
 
-  schema: fromJSON
+  schema: fromJSON,
+  createValue: createValue
 };
 
 

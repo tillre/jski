@@ -604,6 +604,77 @@ describe('jski', function() {
     });
   });
 
+
+  describe('create value from schema', function() {
+
+    var types = [
+      { name: 'boolean',
+        schema: { type: 'boolean' },
+        value: true },
+      { name: 'boolean default',
+        schema: { type: 'boolean', default: false },
+        value: false },
+      { name: 'number',
+        schema: { type: 'number' },
+        value: 0 },
+      { name: 'number default',
+        schema: { type: 'number', default: 1.1 },
+        value: 1.1 },
+      { name: 'integer',
+        schema: { type: 'integer' },
+        value: 0 },
+      { name: 'string',
+        schema: { type: 'string' },
+        value: '' },
+      { name: 'string default',
+        schema: { type: 'string', default: 'hello' },
+        value: 'hello' },
+      { name: 'enum',
+        schema: { 'enum': [1, 2] },
+        value: 1 },
+      { name: 'enum default',
+        schema: { 'enum': [1, 2], default: 2 },
+        value: 2 },
+      { name: 'ref',
+        schema: { $ref: 'Foo' },
+        value: {} },
+      { name: 'ref default',
+        schema: { $ref: 'Foo', default: { id: 'bar'} },
+        value: { id: 'bar' } },
+      { name: 'object',
+        schema: { type: 'object' },
+        value: {} },
+      { name: 'object default',
+        schema: { type: 'object', default: { foo: 'bar' } },
+        value: { foo: 'bar'} },
+      { name: 'object properties',
+        schema: { type: 'object', properties: { foo: { type: 'string' } } },
+        value: { foo: '' } },
+      { name: 'array',
+        schema: { type: 'array' },
+        value: [] },
+      { name: 'array default',
+        schema: { type: 'array', default: [1, 2], value: [1, 2] },
+        value: [1, 2] },
+      { name: 'anyof',
+        schema: { type: 'array', items: { anyOf: [] } },
+        value: [] },
+      { name: 'jski schema primitive',
+        schema: jski.number(),
+        value: 0 },
+      { name: 'jski schema object',
+        schema: jski.object({ foo: jski.boolean() }),
+        value: { foo: true }}
+    ];
+
+    types.forEach(function(type) {
+
+      it('should create value for ' + type.name, function() {
+        assert(JSON.stringify(jski.createValue(type.schema)) === JSON.stringify(type.value));
+      });
+    });
+  });
+  
            
   describe('complex schema', function() {
 

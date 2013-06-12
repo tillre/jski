@@ -107,6 +107,10 @@ Add Defintions:
 * `jski.schema(Schema JSON)`
 * `jski.object().toJSON()`
 
+### Create a default value for a schema
+
+
+
 ### Options
 
 `jski.object().validate(value, { definitions: defs, omitRefs: true })`
