@@ -2,6 +2,7 @@
 
 var assert = require('assert');
 var util = require('util');
+
 var jski = require('./index.js');
 
 
@@ -156,9 +157,9 @@ describe('jski', function() {
       });
 
       it('should not validate a invalid tuple', function() {
-        assert(jski.array([
+        assert(jski.array(
           jski.integer(), jski.string(), jski.boolean()
-        ]).validate([1, '1', 1]).length === 1);
+        ).validate([1, '1', 1]).length === 1);
       });
     });
 
@@ -257,9 +258,7 @@ describe('jski', function() {
         foo: jski.string(),
         bar: jski.number(),
         baz: jski.boolean()
-      }).required([
-        'foo', 'bar'
-      ]);
+      }).required('foo', 'bar');
       
       it('should validate when required property is present', function() {
         assert(schema.validate({foo: '', bar: 42}).length === 0);
@@ -311,22 +310,22 @@ describe('jski', function() {
     describe('5.5.1. enum', function() {
 
       it('should validate a primitive enum value', function() {
-        assert(jski.enum([true, false]).validate(false).length === 0);
-        assert(jski.enum([1, 2, 3]).validate(2).length === 0);
-        assert(jski.enum(['one', 'two']).validate('two').length === 0);
+        assert(jski.enum(true, false).validate(false).length === 0);
+        assert(jski.enum(1, 2, 3).validate(2).length === 0);
+        assert(jski.enum('one', 'two').validate('two').length === 0);
       });
 
       it('should validate a object enum value', function() {
-        assert(jski.enum([{foo: 42}, {bar: 'baz'}]).validate({foo: 42}).length === 0);
-        assert(jski.enum([[1, 2], ['one', 'two']]).validate(['one', 'two']).length === 0);
+        assert(jski.enum({foo: 42}, {bar: 'baz'}).validate({foo: 42}).length === 0);
+        assert(jski.enum([1, 2], ['one', 'two']).validate(['one', 'two']).length === 0);
       });
 
       it('should not validate a non existant enum value', function() {
-        assert(jski.enum([true]).validate(false).length === 1);
-        assert(jski.enum([1, 2, 3]).validate(4).length === 1);
-        assert(jski.enum(['one', 'two']).validate('three').length === 1);
-        assert(jski.enum([{foo: 42}, {bar: 'baz'}]).validate({foo: '42'}).length === 1);
-        assert(jski.enum([[1, 2], ['one', 'two']]).validate(['one']).length === 1);
+        assert(jski.enum(true).validate(false).length === 1);
+        assert(jski.enum(1, 2, 3).validate(4).length === 1);
+        assert(jski.enum('one', 'two').validate('three').length === 1);
+        assert(jski.enum({foo: 42}, {bar: 'baz'}).validate({foo: '42'}).length === 1);
+        assert(jski.enum([1, 2], ['one', 'two']).validate(['one']).length === 1);
       });
     });
 
@@ -359,10 +358,10 @@ describe('jski', function() {
   
   describe('5.5.3. allOf', function() {
 
-    var schema = jski.allOf([
+    var schema = jski.allOf(
       jski.object({ foo: jski.number() }),
       jski.object({ bar: jski.string() })
-    ]);
+    );
     
     it('should conform to all schemas', function() {
       assert(schema.validate({ foo: 42, bar: '' }).length === 0);
@@ -376,10 +375,10 @@ describe('jski', function() {
     
   describe('5.5.3. anyOf', function() {
     
-    var schema = jski.anyOf([
+    var schema = jski.anyOf(
       jski.object({ foo: jski.number() }),
       jski.object({ foo: jski.string() })
-    ]);
+    );
     
     it('should be valid', function() {
       assert(schema.validate({ foo: 42 }).length === 0);
@@ -394,10 +393,10 @@ describe('jski', function() {
     
   describe('5.5.3. oneOf', function() {
 
-    var schema = jski.oneOf([
+    var schema = jski.oneOf(
       jski.object({ foo: jski.string(), bar: jski.boolean() }),
       jski.object({ foo: jski.string(), bar: jski.number() })
-    ]);
+    );
 
     it('should conform to only one schema', function() {
       assert(schema.validate({foo: '', bar: true }).length === 0);
@@ -525,7 +524,7 @@ describe('jski', function() {
                     uniqueItems: true, items: { type: 'number' }},
           val: jski.array(jski.number()).minItems(1).maxItems(10).uniqueItems(true).additionalItems(false) },
         { schema: { type: 'array', items: [{ type: 'number'}, {type: 'string' }] },
-          val: jski.array([jski.number(), jski.string()]) }
+          val: jski.array(jski.number(), jski.string()) }
       ],
       object: [
         { schema: { type: 'object' },
@@ -533,13 +532,13 @@ describe('jski', function() {
         { schema: { type: 'object', properties: { foo: { type: 'number' } },
                     minProperties: 1, maxProperties: 10, required: ['foo'], additionalProperties: false},
           val: jski.object({ foo: jski.number() }).minProperties(1).maxProperties(10)
-          .required(['foo']).additionalProperties(false) }
+          .required('foo').additionalProperties(false) }
       ],
       'enum': [
         { schema: { 'enum': [1, 2, 3] },
-          val: jski.enum([1, 2, 3]) },
+          val: jski.enum(1, 2, 3) },
         { schema: { 'enum': [1, 2, 3], foo: 'bar'},
-          val: jski.enum([1, 2, 3]).custom('foo', 'bar')}
+          val: jski.enum(1, 2, 3).custom('foo', 'bar')}
       ],
       'null': [
         { schema: { type: 'null' },
@@ -551,17 +550,17 @@ describe('jski', function() {
       ],
       allOf: [
         { schema: { allOf: [{ type: 'number'}, { type: 'string' }]},
-          val: jski.allOf([jski.number(), jski.string()]) },
+          val: jski.allOf(jski.number(), jski.string()) },
         { schema: { allOf: [{ type: 'number'}, { type: 'string' }], foo: 'bar' },
-          val: jski.allOf([jski.number(), jski.string()]).custom('foo', 'bar') }
+          val: jski.allOf(jski.number(), jski.string()).custom('foo', 'bar') }
       ],
       anyOf: [
         { schema: { anyOf: [{ type: 'number'}, { type: 'string' }]},
-          val: jski.anyOf([jski.number(), jski.string()]) }
+          val: jski.anyOf(jski.number(), jski.string()) }
       ],
       oneOf: [
         { schema: { oneOf: [{ type: 'number'}, { type: 'string' }]},
-          val: jski.oneOf([jski.number(), jski.string()]) }
+          val: jski.oneOf(jski.number(), jski.string()) }
       ],
       ref: [
         { schema: { $ref: 'foo' },
@@ -683,16 +682,16 @@ describe('jski', function() {
       tags: jski.array(jski.string()),
       image: jski.string().format('url'),
       sections: jski.array(
-        jski.anyOf([
+        jski.anyOf(
           jski.ref('HeaderSection'),
           jski.ref('TextSection'),
           jski.ref('ImageSection'),
           jski.ref('VideoSection'),
           jski.ref('TagSection')
-        ])
+        )
       ).additionalItems(false)
       
-    }).required(['title', 'image', 'sections'])
+    }).required('title', 'image', 'sections')
       .additionalProperties(false);
     
     var definitions = {

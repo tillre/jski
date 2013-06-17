@@ -1,6 +1,6 @@
 {
   "name": "jski",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "json schema validator",
   "keywords": [
     "json",
@@ -18,12 +18,13 @@
     "test": "./node_modules/mocha/bin/mocha -R spec",
     "watch-tests": "./node_modules/mocha/bin/mocha -w -R spec"
   },
-  "licenses": [ {
-    "type": "Apache 2.0",
-    "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-  } ],
-  "dependencies": {
-  },
+  "licenses": [
+    {
+      "type": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  ],
+  "dependencies": {},
   "devDependencies": {
     "mocha": "1.8.x"
   }
