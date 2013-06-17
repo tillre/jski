@@ -73,16 +73,12 @@ API
 #### Types
 
 * `jski.boolean()`
-* `jski.number()
-       .minimum(1).maximum(10).multipleOf()`
+* `jski.number().minimum(1).maximum(10).multipleOf()`
 * `jski.integer()` - Same as number
-* `jski.string()
-       .minLength(1).maxLength(10).pattern('[0-9]*').format('email')`
-* `jski.array(jski.number())
-       .minItems(1).maxItems(10).uniqueItems(true).additionalItems(false)`
+* `jski.string().minLength(1).maxLength(10).pattern('[0-9]*').format('email')`
+* `jski.array(jski.number()).minItems(1).maxItems(10).uniqueItems(true).additionalItems(false)`
 * `jski.array(jski.number(), jski.string(), jski.boolean())`
-* `jski.object({ foo: jski.number() })
-       .minProperties(1).maxProperties(10).required('foo', 'bar').additionalProperties(false)`
+* `jski.object({ foo: jski.number() }).minProperties(1).maxProperties(10).required('foo', 'bar').additionalProperties(false)`
 * `jski.enum(1, 2, 3)`
 * `jski.any()`
 * `jski.null()`
@@ -123,3 +119,8 @@ Add Defintions:
 
 * `definitions` - Dict where $refs are lookuped by name
 * `omitRefs` - Do not validate $refs
+
+TODO
+----
+
+better docs ;)
