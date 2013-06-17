@@ -76,14 +76,15 @@ API
 * `jski.number().minimum(1).maximum(10).multipleOf()`
 * `jski.integer()` - Same as number
 * `jski.string().minLength(1).maxLength(10).pattern('[0-9]*').format('email')`
-* `jski.array(Item Schema | Array Tuple Schema).minItems(1).maxItems(10).uniqueItems(true).additionalItems(false)`
+* `jski.array(jski.number()).minItems(1).maxItems(10).uniqueItems(true).additionalItems(false)`
+* `jski.array(jski.number(), jski.string(), jski.boolean())`
 * `jski.object(Properties object).minProperties(1).maxProperties(10).required(['foo', 'bar']).additionalProperties(false)`
-* `jski.enum([1, 2, 3])`
+* `jski.enum(1, 2, 3)`
 * `jski.any()`
 * `jski.null()`
-* `jski.allOf([schema1, schema2, schema3])`
-* `jski.anyOf([schema1, schema2, schema3])`
-* `jski.oneOf([schema1, schema2, schema3])`
+* `jski.allOf(schema1, schema2, schema3)`
+* `jski.anyOf(schema1, schema2, schema3)`
+* `jski.oneOf(schema1, schema2, schema3)`
 
 #### Common methods available to all types
 
