@@ -26,7 +26,7 @@ describe('jski', function() {
       assert(jski.integer().validate(3.3).length === 1);
     });
 
-    
+
     describe('5.1.1. multipleOf', function() {
 
       it('should be a multiple of', function() {
@@ -38,7 +38,7 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.1.2. maximum', function() {
 
       it('should validate when equal or less', function() {
@@ -62,10 +62,10 @@ describe('jski', function() {
       it('should not validate when greater', function() {
         assert(jski.number().minimum(1).validate(0).length === 1);
       });
-    });    
+    });
   });
 
-  
+
   describe('5.2. strings', function() {
 
     var schema;
@@ -95,7 +95,7 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.2.2. minLength', function() {
 
       it('should be least min characters long', function() {
@@ -108,7 +108,7 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.2.3. pattern', function() {
 
       it('should match the pattern', function() {
@@ -121,7 +121,7 @@ describe('jski', function() {
     });
   });
 
-  
+
   describe('5.3. arrays', function() {
 
     it('should create the schema', function() {
@@ -131,7 +131,7 @@ describe('jski', function() {
     it('should validate anything whithout items specified', function() {
       assert(jski.array().validate([1, '1', true]).length === 0);
     });
-    
+
     describe('5.3.1. additionalItems and items', function() {
 
       it('should validate the items', function() {
@@ -163,9 +163,9 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.3.2. maxItems', function() {
-      
+
       it('should not have too many items', function() {
         assert(jski.array().maxItems(3).validate([1, 2]).length === 0);
         assert(jski.array().maxItems(3).validate([1, 2, 3]).length === 0);
@@ -176,7 +176,7 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.3.3. minItems', function() {
 
       it('should have least min items', function() {
@@ -189,7 +189,7 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.3.4. uniqueItems', function() {
 
       it('should be unique', function() {
@@ -202,11 +202,11 @@ describe('jski', function() {
     });
   });
 
-  
+
   describe('5.4. objects', function() {
 
     var schema;
-    
+
     it ('should create the schema', function() {
       schema = jski.object({
         foo: jski.boolean(),
@@ -238,7 +238,7 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.4.2. minProperties', function() {
 
       it('should have at least a minimum of properties', function() {
@@ -251,15 +251,15 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.4.3. required', function() {
-      
+
       var schema = jski.object({
         foo: jski.string(),
         bar: jski.number(),
         baz: jski.boolean()
       }).required('foo', 'bar');
-      
+
       it('should validate when required property is present', function() {
         assert(schema.validate({foo: '', bar: 42}).length === 0);
       });
@@ -273,9 +273,9 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.4.4.', function() {
-      
+
       describe('properties', function() {
 
         var schema = jski.object({
@@ -304,7 +304,7 @@ describe('jski', function() {
     });
   });
 
-  
+
   describe('5.5. keywords for any instance', function() {
 
     describe('5.5.1. enum', function() {
@@ -329,7 +329,7 @@ describe('jski', function() {
       });
     });
 
-    
+
     describe('5.5.2. type', function() {
 
       it('should validate standard types', function() {
@@ -342,7 +342,7 @@ describe('jski', function() {
         assert(jski.null().validate(null).length === 0);
         assert(jski.any().validate('foo').length === 0);
       });
-      
+
       it('should not validate when value is of wrong type', function() {
         assert(jski.string().validate(false).length === 1);
         assert(jski.number().validate('').length === 1);
@@ -355,42 +355,42 @@ describe('jski', function() {
     });
   });
 
-  
+
   describe('5.5.3. allOf', function() {
 
     var schema = jski.allOf(
       jski.object({ foo: jski.number() }),
       jski.object({ bar: jski.string() })
     );
-    
+
     it('should conform to all schemas', function() {
       assert(schema.validate({ foo: 42, bar: '' }).length === 0);
     });
-    
+
     it('should not validate when not conforming to all schemas', function() {
       assert(schema.validate({ foo: 42, bar: true }).length === 1);
     });
   });
 
-    
+
   describe('5.5.3. anyOf', function() {
-    
+
     var schema = jski.anyOf(
       jski.object({ foo: jski.number() }),
       jski.object({ foo: jski.string() })
     );
-    
+
     it('should be valid', function() {
       assert(schema.validate({ foo: 42 }).length === 0);
       assert(schema.validate({ foo: 'hello' }).length === 0);
     });
-    
+
     it('should not be valid', function() {
       assert(schema.validate({ foo: true }).length === 1);
     });
   });
 
-    
+
   describe('5.5.3. oneOf', function() {
 
     var schema = jski.oneOf(
@@ -409,7 +409,7 @@ describe('jski', function() {
 
 
   describe('7.3. format', function() {
-    
+
     it('should validate formats', function() {
       assert(jski.string().format('email').validate('tim.tim@tom.co.hk').length === 0);
       assert(jski.string().format('ip-address').validate('127.0.0.1').length === 0);
@@ -427,7 +427,7 @@ describe('jski', function() {
       assert(jski.string().format('url').validate('https://localhost.com/bar/baz').length === 0);
       assert(jski.string().format('slug').validate('hello-world-whats-up').length === 0);
     });
-    
+
     it('should not validate invalid string formats', function() {
       assert(jski.string().format('email').validate('tim.tim@tom@co.hk').length === 1);
       assert(jski.string().format('ip-address').validate('127.0.0.1.1').length === 1);
@@ -467,7 +467,7 @@ describe('jski', function() {
     });
   });
 
-  
+
   describe('ref definitions', function() {
 
     var schema = jski.ref('foo');
@@ -579,7 +579,7 @@ describe('jski', function() {
         });
       });
     });
-             
+
     describe('toJSON', function() {
       Object.keys(schemas).forEach(function(key) {
         it('should create ' + key, function() {
@@ -591,7 +591,7 @@ describe('jski', function() {
     });
   });
 
-  
+
   describe('custom attributes', function() {
 
     it('should add custom attributes', function() {
@@ -673,8 +673,8 @@ describe('jski', function() {
       });
     });
   });
-  
-           
+
+
   describe('complex schema', function() {
 
     var schema = jski.object({
@@ -690,10 +690,10 @@ describe('jski', function() {
           jski.ref('TagSection')
         )
       ).additionalItems(false)
-      
+
     }).required('title', 'image', 'sections')
       .additionalProperties(false);
-    
+
     var definitions = {
       HeaderSection: jski.object({
         headline: jski.string(),
@@ -710,7 +710,7 @@ describe('jski', function() {
       }),
       TagSection: jski.array(jski.string())
     };
-    
+
     var data = {
       title: 'Talk about foo',
       tags: ['a', 'b', 'c'],
@@ -732,12 +732,66 @@ describe('jski', function() {
       schema.definitions(definitions);
       assert(schema.validate(data).length === 0);
     });
-    
+
     it('should not validate', function() {
       data.sections.push(42);
       assert(schema.validate(data, { definitions: definitions }).length === 1);
     });
   });
+
+
+  describe('errors', function() {
+
+    it('should not have a path when toplevel is primitive', function() {
+      assert(jski.number().validate('123')[0].path === '');
+    });
+
+    it('should have paths to object properties', function() {
+      var errs = jski.object({
+        foo: jski.number(),
+        bar: jski.string()
+      }).validate({
+        foo: '123',
+        bar: 123
+      });
+
+      assert(errs.length === 2);
+      assert(errs[0].path === '/foo');
+      assert(errs[1].path === '/bar');
+    });
+
+    it('should have paths to nested properties', function() {
+      var errs = jski.object({
+        foo: jski.object({ bar: jski.number() })
+      }).validate({
+        foo: { bar: true }
+      });
+
+      assert(errs.length === 1);
+      assert(errs[0].path === '/foo/bar');
+    });
+
+    it('should have paths to array items', function() {
+      var errs = jski.array(
+        jski.number(),
+        jski.string()
+      ).validate(['', 1]);
+
+      assert(errs.length === 2);
+      assert(errs[0].path === '/0');
+      assert(errs[1].path === '/1');
+    });
+
+    it('should have paths to objects in arrays', function() {
+      var errs = jski.array(
+        jski.object({ foo: jski.number() })
+      ).additionalItems(false).validate([{ foo: '' }]);
+
+      assert(errs.length === 1);
+      assert(errs[0].path === '/0/foo');
+    });
+  });
+
 
   describe('validating schemas', function() {
 
