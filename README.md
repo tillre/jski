@@ -120,6 +120,12 @@ Add Defintions:
 * `definitions` - Dict where $refs are lookuped by name
 * `omitRefs` - Do not validate $refs
 
+### Errors
+
+Error messages look like:
+
+`{ message: "Value is too long", code: "maxLength", path: "/foo/bar/0/baz" }`
+
 TODO
 ----
 
