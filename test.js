@@ -444,6 +444,7 @@ describe('jski', function() {
     it('should not validate non standard invalid format', function() {
       assert(jski.string().format('url').validate('http:/localhost/asd').length === 1);
       assert(jski.string().format('slug').validate('-9hello-world-whats-up-').length === 1);
+      assert(jski.string().format('slug').validate('hello-World-whats-up').length === 1);
     });
   });
 
