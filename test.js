@@ -772,6 +772,17 @@ describe('jski', function() {
       assert(errs[0].path === '/foo/bar');
     });
 
+    it('should have paths to required properties', function() {
+      var errs = jski.object({
+        foo: jski.object({ bar: jski.number() }).required('bar')
+      }).validate({
+        foo: {}
+      });
+
+      assert(errs.length === 1);
+      assert(errs[0].path === '/foo/bar');
+    });
+
     it('should have paths to array items', function() {
       var errs = jski.array(
         jski.number(),
