@@ -575,7 +575,8 @@ describe('jski', function() {
       Object.keys(schemas).forEach(function(key) {
         it('should create ' + key, function() {
           schemas[key].forEach(function(config) {
-            assert.deepEqual(config.schema, jski.schema(config.schema).toJSON());
+            assert.deepEqual(config.schema,
+                             jski.createValidator(config.schema).toJSON());
           });
         });
       });
@@ -600,7 +601,8 @@ describe('jski', function() {
     });
 
     it('should keep custom attributes from json schema', function() {
-      assert.deepEqual(jski.schema({ type: 'object', foo: 11 }).toJSON(), { type: 'object', foo: 11 });
+      assert.deepEqual(jski.createValidator({ type: 'object', foo: 11 }).toJSON(),
+                       { type: 'object', foo: 11 });
     });
   });
 
@@ -811,4 +813,51 @@ describe('jski', function() {
       assert(jski.object({ type: jski.string() }).validate(jski.number()).length === 0);
     });
   });
+
+
+  describe('clone schema', function() {
+
+    it('should clone validator', function() {
+
+      var v = jski.object({
+        foo: jski.string(),
+        bar: jski.object({ baz: jski.boolean().default(false) }),
+        zoo: jski.string().custom('something', 11)
+      }).required('foo', 'bar');
+
+      var c = v.clone();
+
+      assert.deepEqual(c.toJSON(), v.toJSON());
+    });
+  });
+
+
+  describe('additional validators', function() {
+
+    it('should add extra validator', function() {
+      var j = jski.addValidator('foo', jski.string());
+      assert(j.foo().type === 'string');
+    });
+  });
+
+
+  describe('context', function() {
+
+    it('should create a custom context', function() {
+      var j = jski.createContext();
+      j.foo = 10;
+      assert(jski.foo !== 10);
+    });
+
+    it('should create a context of a context', function() {
+      var j = jski.createContext().addValidator('foo', jski.string());
+      var k = j.createContext().addValidator('bar', jski.number());
+      assert(j.foo().type === 'string');
+      assert(k.foo().type === 'string');
+      assert(!j.bar);
+      assert(k.bar().type === 'number');
+    });
+  });
+
+
 });

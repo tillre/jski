@@ -2,12 +2,8 @@ var common = require('./lib/common.js');
 var serialize = require('./lib/serialize.js');
 var vs = require('./lib/validators.js');
 
-//
-// exports
-//
 
-module.exports = {
-    
+var stdValidators = {
   boolean: function() { return new vs.Boolean(); },
   number:  function() { return new vs.Number(); },
   integer: function() { return new vs.Integer(); },
@@ -35,11 +31,36 @@ module.exports = {
   },
   ref:     function(name) {
     return new vs.Ref(name);
-  },
-
-  schema: serialize.fromJSON,
-  createValue: serialize.createValue
+  }
 };
 
 
+function createContext(validators) {
 
+  validators = validators || {};
+
+  var context = {
+
+    addValidator: function(name, validator) {
+      var v = validator.clone();
+      this[name] = validators[name] = function() {
+        return v.clone();
+      };
+      return this;
+    },
+
+    createValidator: serialize.fromJSON,
+
+    createValue: serialize.createValue,
+
+    createContext: function(vs) {
+      vs = vs || {};
+      return createContext(common.extend(vs, validators));
+    }
+  };
+  common.extend(context, validators);
+  return context;
+};
+
+
+module.exports = createContext(stdValidators);
