@@ -145,8 +145,3 @@ var validator = J
 Error messages look like:
 
 `{ message: "Value is too long", code: "maxLength", path: "/foo/bar/0/baz" }`
-
-TODO
-----
-
-better docs ;)
