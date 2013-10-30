@@ -55,7 +55,7 @@ var js = {
   bar: { type: 'string', maxLength: 255 }
 };
 
-var validator = J.schema(js);
+var validator = J.createValidator(js);
 
 var errs = validator.validate({ foo: true, bar: 'hello' });
 
@@ -111,8 +111,8 @@ Add Defintions:
 
 ### Serializing schemas from/to JSON
 
-* `J.schema(Schema JSON)`
-* `J.object().toJSON()`
+* `J.createValidator(Schema JSON)`
+* `J.object({ foo: j.string() }).toJSON()`
 
 ### Create a default value for a schema
 
