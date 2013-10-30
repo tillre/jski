@@ -600,6 +600,11 @@ describe('jski', function() {
       assert.deepEqual(J.object().custom('foo', 11).toJSON(), { type: 'object', foo: 11 });
     });
 
+    it('should get custom attribute', function() {
+      var v = J.object().custom('foo', 11);
+      assert(v.custom('foo') === 11);
+    });
+
     it('should keep custom attributes from json schema', function() {
       assert.deepEqual(J.createValidator({ type: 'object', foo: 11 }).toJSON(),
                        { type: 'object', foo: 11 });
