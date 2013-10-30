@@ -832,15 +832,15 @@ describe('jski', function() {
   });
 
 
-  describe('aliases', function() {
+  describe('mixin', function() {
 
     it('should be addable', function() {
-      var j = J.alias('foo', J.string());
+      var j = J.mixin('foo', J.string());
       assert(j.foo().type === 'string');
     });
 
     it('should keep context when used', function() {
-      var j = J.alias('foo', J.string());
+      var j = J.mixin('foo', J.string());
       assert(j.foo().context === j);
     });
   });

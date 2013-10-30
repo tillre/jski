@@ -3,7 +3,7 @@ var serialize = require('./lib/serialize.js');
 var stdValidators = require('./lib/validators.js');
 
 
-function Context(validators, aliases) {
+function Context(validators, mixins) {
 
   var self = this;
 
@@ -12,9 +12,9 @@ function Context(validators, aliases) {
     self.addValidator(name, validators[name]);
   });
 
-  this.aliases = {};
-  Object.keys(aliases || {}).forEach(function(name) {
-    self.addAlias(name, aliases[name]);
+  this.mixins = {};
+  Object.keys(mixins || {}).forEach(function(name) {
+    self.mixin(name, mixins[name]);
   });
 }
 
@@ -29,9 +29,9 @@ Context.prototype.addValidator = function(name, klass) {
 };
 
 
-Context.prototype.alias = function(name, validator) {
+Context.prototype.mixin = function(name, validator) {
 
-  this.aliases[name] = validator;
+  this.mixins[name] = validator;
   this[name] = function() {
     return validator.clone(this);
   };
@@ -52,7 +52,7 @@ Context.prototype.createValue = function(validator) {
 
 
 // Context.prototype.createContext = function() {
-//   return new Context(this.validators, this.aliases);
+//   return new Context(this.validators, this.mixins);
 // };
 
 

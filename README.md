@@ -126,18 +126,26 @@ Add Defintions:
 * `definitions` - Dict where $refs are lookuped by name
 * `omitRefs` - Do not validate $refs
 
-### Add aliases for validators
+### Add mixins for validators
 
 Simple way to reuse definitions without using an actual $ref
 
 ```javascript
 var validator = J
-  .alias('foo', J.object({ bar: J.string() }))
-  .alias('bar', J.object({ baz: J.number() }))
+  .mixin('foo', J.object({ bar: J.string() }))
+  .mixin('bar', J.object({ baz: J.number() }))
   .object({
     un: J.foo(),
     dos: J.bar()
   });
+```
+
+### Validator context
+
+```javascript
+var J = require('jski)();
+var v1 = J.object({ foo: J.string() });
+assert(v1.context === J);
 ```
 
 ### Errors
