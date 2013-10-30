@@ -1,66 +1,61 @@
 var common = require('./lib/common.js');
 var serialize = require('./lib/serialize.js');
-var vs = require('./lib/validators.js');
+var stdValidators = require('./lib/validators.js');
 
 
-var stdValidators = {
-  boolean: function() { return new vs.Boolean(); },
-  number:  function() { return new vs.Number(); },
-  integer: function() { return new vs.Integer(); },
-  string:  function() { return new vs.String(); },
-  any:     function() { return new vs.Any(); },
-  null:    function() { return new vs.Null(); },
+function Context(validators, aliases) {
 
-  array:   function(varargs) {
-    return new vs.Array(common.cloneArgs(arguments));
-  },
-  object:  function(properties) {
-    return new vs.Object(properties);
-  },
-  'enum':    function(varargs) {
-    return new vs.Enum(common.cloneArgs(arguments));
-  },
-  allOf:   function(varargs) {
-    return new vs.AllOf(common.cloneArgs(arguments));
-  },
-  anyOf:   function(varargs) {
-    return new vs.AnyOf(common.cloneArgs(arguments));
-  },
-  oneOf:   function(varargs) {
-    return new vs.OneOf(common.cloneArgs(arguments));
-  },
-  ref:     function(name) {
-    return new vs.Ref(name);
-  }
-};
+  var self = this;
+
+  this.validators = {};
+  Object.keys(validators || {}).forEach(function(name) {
+    self.addValidator(name, validators[name]);
+  });
+
+  this.aliases = {};
+  Object.keys(aliases || {}).forEach(function(name) {
+    self.addAlias(name, aliases[name]);
+  });
+}
 
 
-function createContext(validators) {
+Context.prototype.addValidator = function(name, klass) {
 
-  validators = validators || {};
-
-  var context = {
-
-    addValidator: function(name, validator) {
-      var v = validator.clone();
-      this[name] = validators[name] = function() {
-        return v.clone();
-      };
-      return this;
-    },
-
-    createValidator: serialize.fromJSON,
-
-    createValue: serialize.createValue,
-
-    createContext: function(vs) {
-      vs = vs || {};
-      return createContext(common.extend(vs, validators));
-    }
+  this.validators[name] = klass;
+  this[name] = function(/*varargs*/) {
+    return new klass(this, common.cloneArgs(arguments));
   };
-  common.extend(context, validators);
-  return context;
+  return this;
 };
 
 
-module.exports = createContext(stdValidators);
+Context.prototype.alias = function(name, validator) {
+
+  this.aliases[name] = validator;
+  this[name] = function() {
+    return validator.clone(this);
+  };
+  return this;
+};
+
+
+Context.prototype.createValidator = function(schema) {
+
+  return serialize.fromJSON(schema);
+};
+
+
+Context.prototype.createValue = function(validator) {
+
+  return serialize.createValue(validator);
+};
+
+
+// Context.prototype.createContext = function() {
+//   return new Context(this.validators, this.aliases);
+// };
+
+
+module.exports = function() {
+  return new Context(stdValidators);
+};
