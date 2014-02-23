@@ -425,7 +425,7 @@ describe('jski', function() {
 
     it('should validate non standard formats', function() {
       assert(J.string().format('url').validate('https://localhost.com/bar/baz').length === 0);
-      assert(J.string().format('slug').validate('hello-world-whats-up').length === 0);
+      assert(J.string().format('slug').validate('9-hello-world-whats-up').length === 0);
     });
 
     it('should not validate invalid string formats', function() {
