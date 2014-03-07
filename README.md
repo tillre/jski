@@ -152,4 +152,4 @@ assert(v1.context === J);
 
 Error messages look like:
 
-`{ message: "Value is too long", code: "maxLength", path: "/foo/bar/0/baz" }`
+`{ message: "Value is too long", code: "maxLength", path: "foo.bar[0].baz" }`

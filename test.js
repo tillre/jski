@@ -223,7 +223,8 @@ describe('jski', function() {
     });
 
     it('should not validate invalid value', function() {
-      assert(schema.validate({ foo: true, bar: 11, baz: { ban: 'boo' } }).length === 2);
+      var errs = schema.validate({ foo: true, bar: 11, baz: { ban: 'boo' } });
+      assert(errs.length === 2);
     });
 
     describe('5.4.1. maxProperties', function() {
@@ -764,8 +765,8 @@ describe('jski', function() {
       });
 
       assert(errs.length === 2);
-      assert(errs[0].path === '/foo');
-      assert(errs[1].path === '/bar');
+      assert(errs[0].path === 'foo');
+      assert(errs[1].path === 'bar');
     });
 
     it('should have paths to nested properties', function() {
@@ -776,7 +777,7 @@ describe('jski', function() {
       });
 
       assert(errs.length === 1);
-      assert(errs[0].path === '/foo/bar');
+      assert(errs[0].path === 'foo.bar');
     });
 
     it('should have paths to required properties', function() {
@@ -787,7 +788,7 @@ describe('jski', function() {
       });
 
       assert(errs.length === 1);
-      assert(errs[0].path === '/foo/bar');
+      assert(errs[0].path === 'foo.bar');
     });
 
     it('should have paths to array items', function() {
@@ -797,8 +798,8 @@ describe('jski', function() {
       ).validate(['', 1]);
 
       assert(errs.length === 2);
-      assert(errs[0].path === '/0');
-      assert(errs[1].path === '/1');
+      assert(errs[0].path === '[0]');
+      assert(errs[1].path === '[1]');
     });
 
     it('should have paths to objects in arrays', function() {
@@ -807,7 +808,17 @@ describe('jski', function() {
       ).additionalItems(false).validate([{ foo: '' }]);
 
       assert(errs.length === 1);
-      assert(errs[0].path === '/0/foo');
+      assert(errs[0].path === '[0].foo');
+    });
+
+    it('should have nested path', function() {
+      var errs = J.object({
+        foo: J.array(
+          J.object({ bar: J.number() })
+        ).additionalItems(false)
+      }).validate({ foo: [{ bar: false }]});
+
+      assert(errs[0].path === 'foo[0].bar');
     });
   });
 
