@@ -798,8 +798,8 @@ describe('jski', function() {
       ).validate(['', 1]);
 
       assert(errs.length === 2);
-      assert(errs[0].path === '[0]');
-      assert(errs[1].path === '[1]');
+      assert(errs[0].path === '0');
+      assert(errs[1].path === '1');
     });
 
     it('should have paths to objects in arrays', function() {
@@ -808,7 +808,7 @@ describe('jski', function() {
       ).additionalItems(false).validate([{ foo: '' }]);
 
       assert(errs.length === 1);
-      assert(errs[0].path === '[0].foo');
+      assert(errs[0].path === '0.foo');
     });
 
     it('should have nested path', function() {
@@ -818,7 +818,7 @@ describe('jski', function() {
         ).additionalItems(false)
       }).validate({ foo: [{ bar: false }]});
 
-      assert(errs[0].path === 'foo[0].bar');
+      assert(errs[0].path === 'foo.0.bar');
     });
   });
 
