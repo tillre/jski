@@ -19,6 +19,8 @@ function Context(validators, mixins) {
 }
 
 
+Context.prototype.__jski__ = true;
+
 Context.prototype.addValidator = function(name, klass) {
 
   this.validators[name] = klass;
